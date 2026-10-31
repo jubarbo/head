@@ -19,6 +19,7 @@ test('gold halfway through the transition', async ({ page }) => {
 
 test('full chrome', async ({ page }) => {
   await openViewer(page);
+  await page.getByRole('button', { name: 'Chrome' }).click();
   await page.locator('[data-control="metal-progress"]').fill('1');
   await expect(page).toHaveScreenshot('metal-chrome-1.png', { mask: unstable(page) });
 });

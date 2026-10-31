@@ -169,3 +169,4 @@ mantis/
   Observation: at 960×600 the bottom panel covers the mandibles in the front view (layout from T0, not changed here).
 
   Risk: item 5 (CI workflow and a new dev dependency). The verifier passed and the native review approved it.
+- **L23 (2026-10-31, user, verbatim):** "aplica las tres mejoras y luego apruebo T7" (apply follow-ups R1-001, R3-005, R3-003).

@@ -30,12 +30,16 @@ specific to the machine that wrote them. After an intended visual change, inspec
 
 The `iphone-webkit` project uses Playwright's WebKit build (the Safari engine) with the iPhone 13 viewport,
 touch and user agent. On Linux it needs system libraries once: `sudo npx playwright install-deps webkit`.
+Its baselines are not committed yet, so the first run must create them:
+`npm run test:ios -- --update-snapshots`; review the new PNGs in `tests/visual/__snapshots__/iphone-webkit/`
+before committing them.
 It is a stand-in, not a substitute, for a real iPhone: GPU limits, memory and fps must still be checked on a device.
 
 ## Deploy (GitHub Pages)
 
 `.github/workflows/pages.yml` runs on every push to `main` (or manually): `npm ci`, unit tests, `vite build`, then
-publishes `dist/` with the official Pages actions. The build uses a relative `base`, so it works at
+publishes `dist/` with the official Pages actions. Only the deploy job gets the `pages: write` and
+`id-token: write` permissions; the build job, which runs dependency code, can only read the repository. The build uses a relative `base`, so it works at
 `https://<user>.github.io/<repository>/` without configuration. One-time setup: push the repository to GitHub and
 set **Settings → Pages → Source** to **GitHub Actions**. Model and texture builds are not run in CI (they need
 Blender and KTX-Software); their outputs in `public/` are committed.
