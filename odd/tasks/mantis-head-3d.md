@@ -41,7 +41,7 @@ mantis/
 
 | ID | Phase | Specs | Route | Effort | Status | Commit |
 |---|---|---|---|---|---|---|
-| T0 | Interactive base: Vite, renderer, HDRI, camera-controls, view presets + reset, quality tiers skeleton, placeholder mesh | S2, S5, S6 | inline | S | done — awaiting user review | see L4 |
+| T0 | Interactive base: Vite, renderer, HDRI, camera-controls, view presets + reset, quality tiers skeleton, placeholder mesh | S2, S5, S6 | inline | S | done — awaiting user review | `87824ee` (L4) |
 | T1 | Blockout: bpy capsule/eyes/plates/neck, ortho reference overlay toggle | S1 | inline | M | pending | — |
 | T2 | Anatomical detail: ocelli, sockets, sutures, mandibles, maxillae/palps, instanced antennae with setae, UVs, compressed GLB | S1 | inline | L | pending | — |
 | T3 | Organic materials + eyes: bake maps, KTX2, translucency, ommatidia/pseudopupil shader | S1, S4 | inline | L | pending | — |
