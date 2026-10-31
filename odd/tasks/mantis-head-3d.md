@@ -48,7 +48,7 @@ mantis/
 | T4 | Lighting + post: key/rim + HDRI, contact shadows, GTAO (L12), AgX, bloom, SMAA | S4, S5 | inline (no writer trigger) | M | done (approved, L14) | `c74771c` (L13) |
 | T5 | Skin → metal: advance mask, front edge, PBR interpolation, 5 presets, UI panel | S3 | inline (no writer trigger) | M/L | done (approved, L17) | `4201909` (L16) |
 | T6 | Performance + mobile: adaptive fps monitor, DPR cap, texture tiers, loader, context-loss recovery | S5 | inline (no writer trigger) | M | done (approved, L20) | `25a1061` (L19) |
-| T7 | QA + delivery: visual snapshots, Safari iOS check, README, GitHub Pages workflow | S6 | inline | S | pending | — |
+| T7 | QA + delivery: visual snapshots, Safari iOS check, README, GitHub Pages workflow | S6 | inline (no writer trigger) | S | done; awaiting approval (L22) — iOS/WebKit run and real Pages deploy pending on user | `cad11d7` (L22) |
 
 ### Acceptance criteria per phase
 
@@ -152,3 +152,20 @@ mantis/
 - Native assess of `25a1061` (base `d752738`, committed-only): risk medium, `review_due: false` (`under_budget`); stays pending in the slice.
 - **L20 (2026-10-31, user, verbatim):** "esta correcto, qué sigue?" (T6 approved).
 - **L21 (2026-10-31, user, verbatim):** "continua con T7" (T7 started).
+- **L22 (2026-10-31, T7, commit `cad11d7`):** Added `@playwright/test` 1.64.1 and `playwright.config.js`: it builds the app and serves `dist/` with `vite preview --base /mantis/` (Pages-like subpath). There are two projects, `desktop-chromium` (960×600, SwiftShader) and `iphone-webkit` (iPhone 13 descriptor). `tests/visual/delivery.spec.js` checks the T7 acceptance criterion: GLB, HDRI, KTX2 and the Basis transcoder `.wasm` all load inside the subpath, no http request escapes it, the real model is shown, and there are no console errors, failed requests or 4xx/5xx responses. Its first run failed because the request list included in-memory blob: URLs from the transcoder worker; the assertion now filters to http URLs and lists offenders. `tests/visual/snapshots.spec.js` has 7 baselines: the 4 views on High, gold at 0.5, chrome at 1 and front on Low. The tier is pinned manually and the fps readout is masked. Scripts: `test:visual` and `test:ios`. `.github/workflows/pages.yml` runs on push to `main` and on manual dispatch: `npm ci`, `npm test`, `vite build`, then upload `dist` and deploy-pages. It uses Node 22 and the latest action majors as of today: checkout v7, setup-node v7, configure-pages v6, upload-pages-artifact v5, deploy-pages v5. The README now documents visual tests, the iOS stand-in and deployment. Results: `npm test` 89/89; `test:visual` 8/8 twice (baselines stable). Independent verifier (deferred from T6, risk item 5), run on a fresh clone and `npm ci`: S6 PASS, T7 criterion PASS under another subpath (`/some-repo-name/`, every response 200, wasm served as application/wasm), S5 first load PASS (4.31 MB on the wire, about 5.43 MB raw); no blockers. Native review: the T4–T7 slice (`d752738..cad11d7`) was refused with `lens_context_budget_exceeded`, so no authority was created. Scope was reduced to `969ec87..cad11d7` (high: workflow shell). The user granted consent; lenses risk + reliability; approved and acknowledged (lineage `review-ad8e049801679bbb`). T4–T6 slices stay unreviewed (each assessed medium/under budget). Non-blocking follow-ups:
+  - R1-001: move `pages`/`id-token` write permissions to the deploy job only.
+  - R1-002: pin actions to commit SHAs.
+  - R3-001: the Low snapshot may race the async 1024 texture swap; it was stable in 2 runs.
+  - R3-003: `iphone-webkit` has no baselines, so the first `test:ios` run needs `--update-snapshots`.
+  - R3-005: the chrome test should click Chrome explicitly.
+  - R3-002 and R3-004 are refuted by evidence: Vitest's include is `tests/**/*.test.js` (`vite.config.js`), and all five action tags exist (`git ls-remote`).
+
+  Not verified:
+  - WebKit/iOS: Playwright WebKit downloaded, but the host lacks system libraries (`sudo npx playwright install-deps webkit`).
+  - Real Safari on an iPhone.
+  - A real Pages deploy: the repository has no git remote, and pushing is the user's decision.
+  - Fps on real GPUs.
+
+  Observation: at 960×600 the bottom panel covers the mandibles in the front view (layout from T0, not changed here).
+
+  Risk: item 5 (CI workflow and a new dev dependency). The verifier passed and the native review approved it.
