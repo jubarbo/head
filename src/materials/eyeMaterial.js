@@ -101,6 +101,9 @@ const FRAGMENT_NORMAL = /* glsl */ `
   normal = normalize( normal + tilt * 0.9 * facetVisibility * facetInterior );
 }`;
 
+/** On metal, the walls between facets read as engraved grooves, so the ommatidia pattern survives. */
+const EYE_METAL_CAVITY = /* glsl */ `metalCavity = 0.7 * ( 1.0 - facetInterior ) * facetVisibility;`;
+
 /**
  * Compound eye: MeshPhysicalMaterial with object-space ommatidia, a view-dependent pseudopupil and a
  * glassy clearcoat for the wet specular highlight (the clearcoat keeps the smooth geometric normal).
@@ -114,6 +117,10 @@ export function createEyeMaterial() {
     envMapIntensity: 0.5, // the studio HDRI otherwise veils the pigment at grazing angles
     clearcoat: 0.6, // 0.85 read as a milky rim at grazing angles under the T4 lighting
     clearcoatRoughness: 0.06,
+    iridescence: 0.2, // faint thin-film sheen of the corneal lenses (adjustable in the material panel)
+    iridescenceIOR: 1.4,
+    iridescenceThicknessMinimum: 200,
+    iridescenceThicknessMaximum: 450,
   });
   const uniforms = {
     uFacetScale: { value: 1 / OMMATIDIUM_SIZE },
@@ -135,6 +142,7 @@ export function createEyeMaterial() {
       .replace('#include <normal_fragment_maps>', FRAGMENT_NORMAL);
   };
   material.customProgramCacheKey = () => 'mantis-eye';
+  material.userData.metalCavity = EYE_METAL_CAVITY;
   material.userData.uniforms = uniforms;
   return material;
 }

@@ -25,6 +25,11 @@ Panel buttons jump to the reference views (Front, Side, Top, Bottom) and **Reset
 **Reference** overlays the matching crop of the reference sheet and switches to a 6° telephoto lens so the comparison is close to orthographic; orbiting hides the overlay until a view button is pressed again.
 **Quality** defaults to *Auto*: it starts from a device guess and steps between Low / Medium / High from the measured frame rate.
 
+The **Material** panel (top right, enabled once the model loads) drives the skin → metal transition: the
+*Skin ↔ Metal* slider, five finishes (Chrome, Gold, Copper, Aged bronze, Titanium) and, under *More*, metal
+roughness, relief strength, metal tone (hue shift, ±60°) and the eyes' iridescence. Picking a finish resets
+the tone and roughness to that finish.
+
 Rendering uses three's own post-processing addons: render → GTAO (High) → subtle bloom (Medium/High) →
 AgX tone mapping (`OutputPass`) → SMAA (Medium/High). Low renders without screen-space effects. The floor
 shadow is a soft contact shadow baked once when the model loads (`src/post/createContactShadow.js`); the key
@@ -63,6 +68,16 @@ clearcoat and a back-light translucency term scaled by the baked thickness (ante
 The compound eyes compute their ommatidia in object space (3D cellular noise, seam-free) with a per-facet lens
 normal, fade the pattern with `fwidth()` before it can alias, and darken a view-dependent pseudopupil where the
 surface faces the camera; a clearcoat gives the wet highlight.
+
+Skin → metal (`metalTransition.js`): every viewer material is extended with one shared set of uniforms, so the
+slider, finishes and extra controls never recompile a shader. Each point gets an arrival time from its distance
+to the mandible tips plus rotated fBm noise (`metalAdvance.js` mirrors the math and is unit-tested); the metal
+dissolves forward from the mouth to the vertex and finally the antennae, with a thin, slightly glowing seam on
+the front. Under the mask the shader blends albedo → F0 (measured values in `metalPresets.js`), metalness,
+roughness, relief strength and clearcoat, removes the backlight translucency and evens out the environment
+reflections. Cavities (baked AO, or the facet walls on the eyes, which keep their ommatidia) stay darker, and
+Aged bronze fills them with verdigris. Because AgX rolls bright colors toward white, each finish carries a
+saturation grade for its tint (copper needs the most, chrome none).
 
 Geometry is authored in the web frame (+Y up, face toward +Z, 1 unit = 1 cm, head height 3.5).
 `calibration.json` holds each reference view's crop, scale and origin plus the silhouette targets; the

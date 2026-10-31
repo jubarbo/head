@@ -9,6 +9,28 @@
   <body>
     <main id="viewport" aria-label="3D viewer of a praying mantis head"></main>
 
+    <section class="material" aria-label="Material" data-panel="material" data-ready="false">
+      <label class="material__row material__progress">
+        <span>Skin</span>
+        <input type="range" min="0" max="1" step="0.001" value="0" data-control="metal-progress" aria-label="Skin to metal" disabled />
+        <span>Metal</span>
+      </label>
+      <div class="material__presets" role="group" aria-label="Metal finish">
+        <button type="button" data-preset="chrome" aria-pressed="true" disabled>Chrome</button>
+        <button type="button" data-preset="gold" aria-pressed="false" disabled>Gold</button>
+        <button type="button" data-preset="copper" aria-pressed="false" disabled>Copper</button>
+        <button type="button" data-preset="agedBronze" aria-pressed="false" disabled>Aged bronze</button>
+        <button type="button" data-preset="titanium" aria-pressed="false" disabled>Titanium</button>
+      </div>
+      <details class="material__more">
+        <summary>More</summary>
+        <label class="material__row">Roughness <input type="range" min="0.02" max="0.8" step="0.01" data-control="metal-roughness" disabled /></label>
+        <label class="material__row">Relief <input type="range" min="0" max="2" step="0.01" value="1" data-control="relief" disabled /></label>
+        <label class="material__row">Tone <input type="range" min="-60" max="60" step="1" value="0" data-control="metal-hue" disabled /></label>
+        <label class="material__row">Eye iridescence <input type="range" min="0" max="1" step="0.01" data-control="eye-iridescence" disabled /></label>
+      </details>
+    </section>
+
     <nav class="panel" aria-label="Viewer controls">
       <div class="panel__group" role="group" aria-label="Views">
         <button type="button" data-view="front">Front</button>

@@ -94,3 +94,70 @@ html, body {
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
+
+.material {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  right: 16px;
+  width: min(calc(100% - 32px), 320px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+}
+
+.material[data-ready="false"] { opacity: 0.5; }
+
+.material__row {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 1.6fr);
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.material__progress {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  color: var(--text);
+}
+
+.material input[type="range"] {
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  accent-color: var(--accent);
+  touch-action: pan-y; /* horizontal drags move the slider, not the page */
+}
+
+.material__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.material button {
+  min-height: 32px;
+  padding: 0 10px;
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.material button:hover:not(:disabled) { border-color: var(--accent); }
+.material button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.material button:focus-visible,
+.material summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.material__more summary {
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.material__more[open] { display: flex; flex-direction: column; gap: 6px; }

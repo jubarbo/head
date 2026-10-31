@@ -10,6 +10,7 @@ import { createPost } from './post/createPost.js';
 import { createContactShadow } from './post/createContactShadow.js';
 import { QUALITY_TIERS, detectInitialTier } from './quality/tiers.js';
 import { bindPanel } from './ui/panel.js';
+import { bindMaterialPanel } from './ui/materialPanel.js';
 
 const container = /** @type {HTMLElement} */ (document.getElementById('viewport'));
 
@@ -30,6 +31,8 @@ loadHead(stage.renderer, startTier)
   .then((head) => {
     stage.scene.add(head);
     contactShadow.bake(head);
+    if (head.userData.metal) bindMaterialPanel(head.userData.metal);
+    /** @type {any} */ (window).__mantis.head = head;
   });
 
 const rig = createCameraRig(stage.camera, stage.renderer.domElement);
