@@ -25,6 +25,11 @@ Panel buttons jump to the reference views (Front, Side, Top, Bottom) and **Reset
 **Reference** overlays the matching crop of the reference sheet and switches to a 6° telephoto lens so the comparison is close to orthographic; orbiting hides the overlay until a view button is pressed again.
 **Quality** defaults to *Auto*: it starts from a device guess and steps between Low / Medium / High from the measured frame rate.
 
+Rendering uses three's own post-processing addons: render → GTAO (High) → subtle bloom (Medium/High) →
+AgX tone mapping (`OutputPass`) → SMAA (Medium/High). Low renders without screen-space effects. The floor
+shadow is a soft contact shadow baked once when the model loads (`src/post/createContactShadow.js`); the key
+light's shadow map only self-shadows the head (Medium/High).
+
 ## 3D assets (Blender 4.5 LTS, headless)
 
 ```bash

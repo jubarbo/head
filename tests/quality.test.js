@@ -59,3 +59,14 @@ describe('fps monitor', () => {
     expect(feed(m, 40, 3)).toEqual([]);
   });
 });
+
+describe('post-processing per tier', () => {
+  it('keeps the low tier free of screen-space effects', () => {
+    expect(QUALITY_TIERS.low).toMatchObject({ ambientOcclusion: false, bloom: false, smaa: false });
+  });
+
+  it('adds SMAA and bloom on medium, and GTAO only on high', () => {
+    expect(QUALITY_TIERS.medium).toMatchObject({ ambientOcclusion: false, bloom: true, smaa: true });
+    expect(QUALITY_TIERS.high).toMatchObject({ ambientOcclusion: true, bloom: true, smaa: true });
+  });
+});

@@ -37,6 +37,7 @@ export function createReferenceOverlay(scene) {
     plane.matrix.copy(new Matrix4().makeBasis(U, V, new Vector3(...normal)).setPosition(U.multiplyScalar(centerU).add(V.multiplyScalar(centerV))));
     plane.renderOrder = 1000;
     plane.name = `reference-${view}`;
+    plane.userData.excludeFromAO = true;
     plane.visible = false;
     scene.add(plane);
     planes.set(view, plane);

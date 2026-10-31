@@ -6,6 +6,8 @@ import { createPlaceholderHead } from './model/placeholderHead.js';
 import { loadHead } from './model/loadHead.js';
 import { createReferenceOverlay } from './reference/referenceOverlay.js';
 import { createQualityManager } from './quality/qualityManager.js';
+import { createPost } from './post/createPost.js';
+import { createContactShadow } from './post/createContactShadow.js';
 import { QUALITY_TIERS, detectInitialTier } from './quality/tiers.js';
 import { bindPanel } from './ui/panel.js';
 
@@ -16,15 +18,22 @@ const startTier = detectInitialTier({
   hardwareConcurrency: navigator.hardwareConcurrency,
 });
 const stage = createStage(container, { antialias: QUALITY_TIERS[startTier].antialias });
+const post = createPost(stage.renderer, stage.scene, stage.camera);
+stage.onResize(post.setSize);
+const contactShadow = createContactShadow(stage.renderer, stage.scene);
+
 loadHead(stage.renderer, startTier)
-  .then((head) => stage.scene.add(head))
   .catch((error) => {
     console.error('Head model failed to load, showing the placeholder', error);
-    stage.scene.add(createPlaceholderHead());
+    return createPlaceholderHead();
+  })
+  .then((head) => {
+    stage.scene.add(head);
+    contactShadow.bake(head);
   });
 
 const rig = createCameraRig(stage.camera, stage.renderer.domElement);
-const quality = createQualityManager(stage, (tier) => { container.dataset.tier = tier; });
+const quality = createQualityManager({ ...stage, post }, (tier) => { container.dataset.tier = tier; });
 const overlay = createReferenceOverlay(stage.scene);
 const panel = bindPanel(rig, overlay, quality);
 rig.controls.addEventListener('controlstart', panel.clearActiveView);
@@ -39,8 +48,8 @@ stage.renderer.setAnimationLoop((timestamp) => {
   rig.update(delta);
   quality.sample(delta);
   panel.tick(delta);
-  stage.renderer.render(stage.scene, stage.camera);
+  post.render(delta);
 });
 
 // Exposed for manual debugging and automated smoke checks.
-Object.assign(window, { __mantis: { stage, rig, quality } });
+Object.assign(window, { __mantis: { stage, rig, quality, post, contactShadow } });

@@ -5,10 +5,10 @@ import { createFpsMonitor } from './fpsMonitor.js';
 /**
  * Applies a quality tier to the renderer and, in auto mode, adapts it from measured fps.
  * Antialiasing is fixed at renderer creation, so it only follows the initial tier.
- * @param {{ renderer: import('three').WebGLRenderer, scene: import('three').Scene, keyLight: import('three').DirectionalLight }} stage
+ * @param {{ renderer: import('three').WebGLRenderer, scene: import('three').Scene, keyLight: import('three').DirectionalLight, post: { setTier: (settings: import('./tiers.js').TierSettings) => void } }} stage
  * @param {(tier: import('./tiers.js').TierName) => void} [onChange]
  */
-export function createQualityManager({ renderer, scene, keyLight }, onChange = () => {}) {
+export function createQualityManager({ renderer, scene, keyLight, post }, onChange = () => {}) {
   const monitor = createFpsMonitor();
   let auto = true;
   let tier = initialTier();
@@ -31,6 +31,8 @@ export function createQualityManager({ renderer, scene, keyLight }, onChange = (
         if (material) material.needsUpdate = true;
       });
     }
+
+    post.setTier(settings); // after setPixelRatio: the composer copies the renderer's ratio
 
     tier = next;
     monitor.reset();

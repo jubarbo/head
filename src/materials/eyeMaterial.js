@@ -111,8 +111,8 @@ export function createEyeMaterial() {
     roughness: 0.3,
     metalness: 0,
     specularIntensity: 0.5, // most of the gloss comes from the wet clearcoat layer
-    envMapIntensity: 0.6, // the studio HDRI otherwise veils the pigment at grazing angles
-    clearcoat: 0.85,
+    envMapIntensity: 0.5, // the studio HDRI otherwise veils the pigment at grazing angles
+    clearcoat: 0.6, // 0.85 read as a milky rim at grazing angles under the T4 lighting
     clearcoatRoughness: 0.06,
   });
   const uniforms = {

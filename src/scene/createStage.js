@@ -6,7 +6,9 @@ const BACKGROUND = 0x1b1a19;
 const HDRI_URL = `${import.meta.env.BASE_URL}hdri/studio_small_09_1k.hdr`;
 
 /**
- * Renderer, scene, camera, studio lighting and a shadow catcher.
+ * Renderer, scene, camera and studio lighting. The floor shadow is the baked contact shadow
+ * (src/post/createContactShadow.js); the key light's shadow map only self-shadows the head.
+ * Tone mapping is applied by the composer's OutputPass, which reads `renderer.toneMapping`.
  * @param {HTMLElement} container
  * @param {{ antialias: boolean }} options
  */
@@ -34,15 +36,6 @@ export function createStage(container, { antialias }) {
   rimLight.position.set(-5, 3, -6);
   scene.add(keyLight, rimLight);
 
-  const shadowCatcher = new THREE.Mesh(
-    new THREE.PlaneGeometry(14, 14),
-    new THREE.ShadowMaterial({ opacity: 0.35 }),
-  );
-  shadowCatcher.rotation.x = -Math.PI / 2;
-  shadowCatcher.position.y = -3.4; // below the neck stub (y ≈ -3.15)
-  shadowCatcher.receiveShadow = true;
-  scene.add(shadowCatcher);
-
   /** Loads the HDRI as image-based lighting only; the backdrop stays the flat studio gray. */
   async function loadEnvironment() {
     const pmrem = new THREE.PMREMGenerator(renderer);
@@ -53,15 +46,24 @@ export function createStage(container, { antialias }) {
     pmrem.dispose();
   }
 
+  /** @type {((width: number, height: number) => void)[]} */
+  const resizeListeners = [];
   function resize() {
     const { clientWidth: w, clientHeight: h } = container;
     if (w === 0 || h === 0) return;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    for (const listener of resizeListeners) listener(w, h);
+  }
+  /** @param {(width: number, height: number) => void} listener called now and on every resize */
+  function onResize(listener) {
+    resizeListeners.push(listener);
+    const { width, height } = renderer.getSize(new THREE.Vector2());
+    listener(width, height);
   }
   new ResizeObserver(resize).observe(container);
   resize();
 
-  return { renderer, scene, camera, keyLight, loadEnvironment };
+  return { renderer, scene, camera, keyLight, loadEnvironment, onResize };
 }
