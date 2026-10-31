@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Mantis Head 3D</title>
+    <link rel="stylesheet" href="./src/ui/styles.css" />
+  </head>
+  <body>
+    <main id="viewport" aria-label="3D viewer of a praying mantis head"></main>
+
+    <nav class="panel" aria-label="Viewer controls">
+      <div class="panel__group" role="group" aria-label="Views">
+        <button type="button" data-view="front">Front</button>
+        <button type="button" data-view="right">Side</button>
+        <button type="button" data-view="top">Top</button>
+        <button type="button" data-view="bottom">Bottom</button>
+        <button type="button" data-action="reset" class="panel__reset">Reset view</button>
+      </div>
+      <label class="panel__quality">
+        Quality
+        <select data-control="quality">
+          <option value="auto">Auto</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+      </label>
+      <output class="panel__fps" data-readout="fps" aria-live="off">– fps</output>
+    </nav>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
