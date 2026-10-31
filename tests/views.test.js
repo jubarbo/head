@@ -19,7 +19,12 @@ describe('viewToLookAt', () => {
 
   it('places the top camera above and the bottom camera below', () => {
     expect(viewToLookAt('top', 10, target).position.y).toBeGreaterThan(9.9);
-    expect(viewToLookAt('bottom', 10, target).position.y).toBeLessThan(-9.9);
+    expect(viewToLookAt('bottom', 10, target).position.y).toBeLessThan(-8);
+  });
+
+  it('looks at the mouthparts from below and in front, like the guide, so the neck does not hide them', () => {
+    const { position } = viewToLookAt('bottom', 10, target);
+    expect(position.z).toBeGreaterThan(3);
   });
 
   it('keeps the requested distance and offsets by the target', () => {

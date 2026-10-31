@@ -8,8 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "model:build": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/build_head.py -- public/models/mantis-head.glb",
-    "model:check": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/check_proportions.py -- public/models/mantis-head.glb assets-src/reference/calibration.json",
+    "model:build": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/build_head.py -- assets-src/models/mantis-head.raw.glb && gltf-transform meshopt assets-src/models/mantis-head.raw.glb public/models/mantis-head.glb",
+    "model:check": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/check_proportions.py -- assets-src/models/mantis-head.raw.glb assets-src/reference/calibration.json",
     "reference:build": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/build_reference.py -- assets-src/reference/mantis-reference-sheet.png assets-src/reference/calibration.json public/reference"
   },
   "dependencies": {
@@ -17,6 +17,7 @@
     "three": "^0.187.0"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "^4.5.1",
     "playwright": "^1.64.1",
     "vite": "^8.3.5",
     "vitest": "^4.1.12"

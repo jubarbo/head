@@ -28,10 +28,15 @@ Panel buttons jump to the reference views (Front, Side, Top, Bottom) and **Reset
 ## 3D assets (Blender 4.5 LTS, headless)
 
 ```bash
-npm run model:build       # tools/blender/build_head.py -> public/models/mantis-head.glb
-npm run model:check       # measures the GLB against assets-src/reference/calibration.json (exit 1 on failure)
+npm run model:build       # tools/blender/build_head.py -> assets-src/models/mantis-head.raw.glb (ignored)
+                          #   then glTF-Transform meshopt -> public/models/mantis-head.glb
+npm run model:check       # measures the raw GLB against assets-src/reference/calibration.json (exit 1 on failure)
 npm run reference:build   # crops the reference sheet into public/reference/*.webp
 ```
+
+`npm test` also checks the published GLB: required anatomical parts, segment counts (5-segment maxillary
+palps, 3-segment labial palps, flagellum ≥ 40 segments with setae, toothed mandibles), carved sutures,
+UVs on every primitive, and the budget (< 150k triangles, < 3 MB, meshopt).
 
 Geometry is authored in the web frame (+Y up, face toward +Z, 1 unit = 1 cm, head height 3.5).
 `calibration.json` holds each reference view's crop, scale and origin plus the silhouette targets; the

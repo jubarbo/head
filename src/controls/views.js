@@ -28,7 +28,8 @@ const VIEWS = Object.freeze({
   front: { azimuth: 0, polar: Math.PI / 2 },
   right: { azimuth: -Math.PI / 2, polar: Math.PI / 2 },
   top: { azimuth: 0, polar: POLE_EPSILON },
-  bottom: { azimuth: 0, polar: Math.PI - POLE_EPSILON },
+  // The guide's bottom view is shot from below and in front; straight below, the neck hides the mouth.
+  bottom: { azimuth: 0, polar: Math.PI - 0.5 },
 });
 
 export const VIEW_NAMES = Object.freeze(Object.keys(VIEWS));
