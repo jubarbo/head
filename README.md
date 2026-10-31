@@ -22,8 +22,17 @@ npm run preview   # serve the build locally
 | Pan | Right drag, or Shift/Ctrl/Cmd + left drag | Two fingers (three fingers: pan only) |
 
 Panel buttons jump to the reference views (Front, Side, Top, Bottom) and **Reset view** returns to the framed front view.
+**Reference** overlays the matching crop of the reference sheet and switches to a 6° telephoto lens so the comparison is close to orthographic; orbiting hides the overlay until a view button is pressed again.
 **Quality** defaults to *Auto*: it starts from a device guess and steps between Low / Medium / High from the measured frame rate.
 
-## Tooling
+## 3D assets (Blender 4.5 LTS, headless)
 
-3D assets are generated with headless Blender 4.5 LTS (`blender -b --python tools/blender/...`), added from phase T1.
+```bash
+npm run model:build       # tools/blender/build_head.py -> public/models/mantis-head.glb
+npm run model:check       # measures the GLB against assets-src/reference/calibration.json (exit 1 on failure)
+npm run reference:build   # crops the reference sheet into public/reference/*.webp
+```
+
+Geometry is authored in the web frame (+Y up, face toward +Z, 1 unit = 1 cm, head height 3.5).
+`calibration.json` holds each reference view's crop, scale and origin plus the silhouette targets; the
+large side view of the sheet is mirrored because it shows the opposite side to its own orthographic "Derecha" view.

@@ -64,10 +64,11 @@ export function viewToLookAt(name, distance, target) {
  * @param {number} radius
  * @param {number} verticalFovDeg
  * @param {number} aspect width / height
+ * @param {{ minDistance: number, maxDistance: number }} [limits]
  */
-export function fitDistance(radius, verticalFovDeg, aspect) {
+export function fitDistance(radius, verticalFovDeg, aspect, limits = CAMERA_LIMITS) {
   const halfV = (verticalFovDeg * Math.PI) / 360;
   const halfH = Math.atan(Math.tan(halfV) * aspect);
   const distance = radius / Math.sin(Math.min(halfV, halfH));
-  return Math.min(CAMERA_LIMITS.maxDistance, Math.max(CAMERA_LIMITS.minDistance, distance));
+  return Math.min(limits.maxDistance, Math.max(limits.minDistance, distance));
 }

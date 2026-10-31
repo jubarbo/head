@@ -39,7 +39,7 @@ export function createStage(container, { antialias }) {
     new THREE.ShadowMaterial({ opacity: 0.35 }),
   );
   shadowCatcher.rotation.x = -Math.PI / 2;
-  shadowCatcher.position.y = -2.6;
+  shadowCatcher.position.y = -3.4; // below the neck stub (y ≈ -3.15)
   shadowCatcher.receiveShadow = true;
   scene.add(shadowCatcher);
 

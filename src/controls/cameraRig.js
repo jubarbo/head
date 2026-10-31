@@ -8,6 +8,12 @@ CameraControls.install({ THREE: { Box3, Matrix4, Quaternion, Raycaster, Sphere, 
 const { ACTION } = CameraControls;
 const PAN_MODIFIERS = ['Shift', 'Control', 'Meta'];
 
+/** Normal lens vs. a narrow telephoto that approximates the orthographic reference views. */
+const LENSES = Object.freeze({
+  normal: { fov: 35, limits: CAMERA_LIMITS },
+  telephoto: { fov: 6, limits: { ...CAMERA_LIMITS, minDistance: 20, maxDistance: 200 } },
+});
+
 /**
  * Orbit/zoom/pan with damping for mouse and touch, plus preset views and reset.
  * @param {import('three').PerspectiveCamera} camera
@@ -15,9 +21,11 @@ const PAN_MODIFIERS = ['Shift', 'Control', 'Meta'];
  */
 export function createCameraRig(camera, domElement) {
   const controls = new CameraControls(camera, domElement);
+  camera.far = 400;
+  let lens = LENSES.normal;
   Object.assign(controls, {
-    minDistance: CAMERA_LIMITS.minDistance,
-    maxDistance: CAMERA_LIMITS.maxDistance,
+    minDistance: lens.limits.minDistance,
+    maxDistance: lens.limits.maxDistance,
     minPolarAngle: CAMERA_LIMITS.minPolarAngle,
     maxPolarAngle: CAMERA_LIMITS.maxPolarAngle,
     smoothTime: 0.25,
@@ -54,9 +62,23 @@ export function createCameraRig(camera, domElement) {
    * @param {boolean} [animate]
    */
   function goToView(name, animate = true) {
-    const distance = fitDistance(CAMERA_LIMITS.framingRadius, camera.fov, camera.aspect);
+    const distance = fitDistance(CAMERA_LIMITS.framingRadius, camera.fov, camera.aspect, lens.limits);
     const { position: p, target: t } = viewToLookAt(name, distance, origin);
     return controls.setLookAt(p.x, p.y, p.z, t.x, t.y, t.z, animate);
+  }
+
+  /**
+   * Switches lens and re-frames the given view without a jump in apparent size.
+   * @param {boolean} enabled
+   * @param {string} view
+   */
+  function setTelephoto(enabled, view) {
+    lens = enabled ? LENSES.telephoto : LENSES.normal;
+    camera.fov = lens.fov;
+    camera.updateProjectionMatrix();
+    controls.minDistance = lens.limits.minDistance;
+    controls.maxDistance = lens.limits.maxDistance;
+    return goToView(view, false);
   }
 
   goToView('front', false);
@@ -64,6 +86,7 @@ export function createCameraRig(camera, domElement) {
   return {
     controls,
     goToView,
+    setTelephoto,
     /** Front view framed for the current aspect ratio (a saved state would go stale on rotation). */
     reset: () => goToView('front'),
     /** @param {number} delta */

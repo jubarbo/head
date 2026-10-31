@@ -1,0 +1,50 @@
+{
+  "source": "assets-src/reference/mantis-reference-sheet.png (1254x1254). Measured once from silhouette width profiles of each crop (threshold against the backdrop, morphological close/open to drop antennae); world units are cm, head height (vertex top to mandible tips) = 3.5.",
+  "headHeight": 3.5,
+  "views": {
+    "front": {
+      "crop": [0, 60, 560, 636], "mirror": false,
+      "originPx": [266.5, 327], "originUV": [0, 0], "unitsPerPx": 0.007883,
+      "axes": { "u": "+x", "v": "+y" }
+    },
+    "right": {
+      "crop": [563, 60, 912, 636], "mirror": true,
+      "note": "The sheet's large lateral view shows the face pointing left, mirroring its own orthographic 'Derecha' view; it is mirrored so the face points to +Z like the camera's right view.",
+      "originPx": [165, 293.5], "originUV": [0, 0], "unitsPerPx": 0.008685,
+      "axes": { "u": "+z", "v": "+y" }
+    },
+    "top": {
+      "crop": [915, 40, 1254, 350], "mirror": false,
+      "note": "Perspective from above-front; scale from eye-to-eye width, qualitative only.",
+      "originPx": [170.5, 145], "originUV": [0, 0.25], "unitsPerPx": 0.01298,
+      "axes": { "u": "+x", "v": "-z" }
+    },
+    "bottom": {
+      "crop": [915, 400, 1254, 720], "mirror": false,
+      "note": "Perspective from below-front; scale from eye-to-eye width, qualitative only.",
+      "originPx": [172, 110], "originUV": [0, -0.25], "unitsPerPx": 0.01375,
+      "axes": { "u": "+x", "v": "+z" }
+    }
+  },
+  "targets": {
+    "headWidth": 3.96,
+    "headHeight": 3.5,
+    "eyeOuterX": 1.98,
+    "eyeHeight": 1.85,
+    "frontHalfWidthByY": [
+      [1.63, 0.95], [1.48, 1.56], [1.32, 1.79], [1.16, 1.90], [1.0, 1.97], [0.84, 1.98],
+      [0.69, 1.97], [0.52, 1.92], [0.37, 1.84], [0.21, 1.74], [0.05, 1.61], [-0.10, 1.45],
+      [-0.26, 1.23], [-0.42, 1.05], [-0.575, 0.86], [-0.89, 0.80], [-1.05, 0.59],
+      [-1.36, 0.46], [-1.52, 0.37], [-1.68, 0.15]
+    ],
+    "sideFrontZByY": [
+      [1.51, 0.55], [1.33, 0.75], [1.16, 0.90], [0.81, 1.13], [0.46, 1.19], [0.12, 1.19],
+      [-0.23, 1.24], [-0.92, 1.32], [-1.27, 1.33], [-1.62, 1.24]
+    ],
+    "sideBackZByY": [
+      [1.51, -1.04], [1.33, -1.15], [1.16, -1.19], [0.81, -1.18], [0.46, -1.24]
+    ],
+    "tolerance": 0.175,
+    "toleranceNote": "5% of head height, applied as absolute error to every sample"
+  }
+}

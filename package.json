@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "model:build": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/build_head.py -- public/models/mantis-head.glb",
+    "model:check": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/check_proportions.py -- public/models/mantis-head.glb assets-src/reference/calibration.json",
+    "reference:build": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/build_reference.py -- assets-src/reference/mantis-reference-sheet.png assets-src/reference/calibration.json public/reference"
   },
   "dependencies": {
     "camera-controls": "^3.1.0",

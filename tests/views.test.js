@@ -68,6 +68,11 @@ describe('fitDistance', () => {
     expect(fits(portrait, 390 / 844)).toBe(true);
   });
 
+  it('accepts wider limits for the telephoto reference mode', () => {
+    const limits = { ...CAMERA_LIMITS, maxDistance: 200 };
+    expect(fitDistance(radius, 6, 390 / 844, limits)).toBeGreaterThan(CAMERA_LIMITS.maxDistance);
+  });
+
   it('stays inside the zoom limits', () => {
     expect(fitDistance(100, vfov, 0.2)).toBe(CAMERA_LIMITS.maxDistance);
     expect(fitDistance(0.1, vfov, 1)).toBe(CAMERA_LIMITS.minDistance);
