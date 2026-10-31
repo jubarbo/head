@@ -53,6 +53,8 @@ Blender and KTX-Software); their outputs in `public/` are committed.
 | Pan | Right drag, or Shift/Ctrl/Cmd + left drag | Two fingers (three fingers: pan only) |
 
 Panel buttons jump to the reference views (Front, Side, Top, Bottom) and **Reset view** returns to the framed front view.
+Views are framed in the area the panels leave free: the projection centre is shifted above the bottom panel
+(and below the material panel when it spans the middle of the screen, as on portrait phones), so the mouthparts are never hidden.
 **Reference** overlays the matching crop of the reference sheet and switches to a 6° telephoto lens so the comparison is close to orthographic; orbiting hides the overlay until a view button is pressed again.
 **Quality** defaults to *Auto*: it starts from a device guess (Medium on touch devices, High on desktops) and, once the scene
 has loaded, steps between Low / Medium / High from the measured frame rate (below 28 fps → down, above 55 fps → up).

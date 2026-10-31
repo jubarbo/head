@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { VIEW_NAMES, CAMERA_LIMITS, fitDistance, viewToLookAt } from '../src/controls/views.js';
+import { VIEW_NAMES, CAMERA_LIMITS, fitDistance, viewToLookAt, visibleFrame } from '../src/controls/views.js';
 
 describe('viewToLookAt', () => {
   const target = { x: 0, y: 0, z: 0 };
@@ -92,5 +92,34 @@ describe('pan bounds', () => {
       expect(panBounds.max[axis]).toBeGreaterThanOrEqual(0);
       expect(Number.isFinite(panBounds.max[axis] - panBounds.min[axis])).toBe(true);
     }
+  });
+});
+
+describe('visibleFrame', () => {
+  it('leaves the projection untouched without overlays', () => {
+    expect(visibleFrame(35, 960, 600, { top: 0, bottom: 0 })).toEqual({ fov: 35, aspect: 1.6, offsetY: 0 });
+  });
+
+  it('centres the projection in the area above the bottom panel', () => {
+    const frame = visibleFrame(35, 960, 600, { top: 0, bottom: 120 });
+    expect(frame.offsetY).toBe(60); // content moves up by half the covered height
+    expect(frame.aspect).toBeCloseTo(960 / 480);
+    const halfTan = Math.tan((frame.fov * Math.PI) / 360);
+    expect(halfTan).toBeCloseTo(Math.tan((35 * Math.PI) / 360) * (480 / 600));
+  });
+
+  it('fits the head inside the free area, so the mouthparts clear the panel', () => {
+    const frame = visibleFrame(35, 960, 600, { top: 0, bottom: 120 });
+    const distance = fitDistance(CAMERA_LIMITS.framingRadius, frame.fov, frame.aspect);
+    const pxPerUnit = 600 / (2 * distance * Math.tan((35 * Math.PI) / 360));
+    const headCentre = 300 - frame.offsetY; // screen y of the orbit target
+    expect(headCentre + CAMERA_LIMITS.framingRadius * pxPerUnit).toBeLessThanOrEqual(480 + 1e-6);
+    expect(distance).toBeGreaterThan(fitDistance(CAMERA_LIMITS.framingRadius, 35, 1.6));
+  });
+
+  it('never gives the head less than half of the viewport height', () => {
+    const frame = visibleFrame(35, 960, 400, { top: 0, bottom: 350 });
+    expect(frame.offsetY).toBe(100);
+    expect(frame.aspect).toBeCloseTo(960 / 200);
   });
 });

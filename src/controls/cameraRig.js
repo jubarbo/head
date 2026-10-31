@@ -1,7 +1,7 @@
 // @ts-check
 import { Box3, Matrix4, Quaternion, Raycaster, Sphere, Spherical, Vector2, Vector3, Vector4 } from 'three';
 import CameraControls from 'camera-controls';
-import { CAMERA_LIMITS, fitDistance, viewToLookAt } from './views.js';
+import { CAMERA_LIMITS, fitDistance, viewToLookAt, visibleFrame } from './views.js';
 
 CameraControls.install({ THREE: { Box3, Matrix4, Quaternion, Raycaster, Sphere, Spherical, Vector2, Vector3, Vector4 } });
 
@@ -56,13 +56,25 @@ export function createCameraRig(camera, domElement) {
   domElement.addEventListener('contextmenu', (event) => event.preventDefault());
 
   const origin = { x: 0, y: 0, z: 0 };
+  let insets = { top: 0, bottom: 0 };
+  const viewport = { width: 1, height: 1 };
+  const frame = () => visibleFrame(camera.fov, viewport.width, viewport.height, insets);
+
+  /** Shifts the projection so the orbit target sits in the middle of the area the overlays leave free. */
+  function applyFrame() {
+    const { offsetY } = frame();
+    const { width, height } = viewport;
+    if (offsetY === 0) camera.clearViewOffset();
+    else camera.setViewOffset(width, height, 0, offsetY, width, height);
+  }
 
   /**
    * @param {string} name
    * @param {boolean} [animate]
    */
   function goToView(name, animate = true) {
-    const distance = fitDistance(CAMERA_LIMITS.framingRadius, camera.fov, camera.aspect, lens.limits);
+    const { fov, aspect } = frame();
+    const distance = fitDistance(CAMERA_LIMITS.framingRadius, fov, aspect, lens.limits);
     const { position: p, target: t } = viewToLookAt(name, distance, origin);
     return controls.setLookAt(p.x, p.y, p.z, t.x, t.y, t.z, animate);
   }
@@ -87,6 +99,18 @@ export function createCameraRig(camera, domElement) {
     controls,
     goToView,
     setTelephoto,
+    /**
+     * Viewport size and the CSS px covered by UI overlays at its top and bottom. Call on every resize:
+     * the stage resets the projection, and presets fit the head into the uncovered area.
+     * @param {number} width
+     * @param {number} height
+     * @param {{ top: number, bottom: number }} covered
+     */
+    setViewport(width, height, covered) {
+      Object.assign(viewport, { width, height });
+      insets = covered;
+      applyFrame();
+    },
     /** Front view framed for the current aspect ratio (a saved state would go stale on rotation). */
     reset: () => goToView('front'),
     /** @param {number} delta */

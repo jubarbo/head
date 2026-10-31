@@ -55,6 +55,8 @@ function start() {
   const overlay = createReferenceOverlay(stage.scene);
   const panel = bindPanel(rig, overlay, quality);
   rig.controls.addEventListener('controlstart', panel.clearActiveView);
+  frameAboveControls(stage, rig);
+  rig.goToView('front', false); // re-fit now that the panel's height is known
 
   // Auto quality only samples once the scene is complete: downloads and shader compilation would
   // otherwise read as a slow device and drop the tier at startup.
@@ -92,4 +94,32 @@ function start() {
 
   // Exposed for manual debugging and automated smoke checks.
   Object.assign(window, { __mantis: { stage, rig, quality, post, contactShadow } });
+}
+
+/**
+ * Keeps the head framed in the area the overlays leave free, so the mouthparts are never hidden behind
+ * the bottom control panel (it wraps to more rows on narrow screens). The material panel counts only
+ * when it crosses the screen's centre line (portrait phones); elsewhere it sits beside the head.
+ * Only viewport and control-panel resizes re-measure: opening "More" must not move the head.
+ * @param {{ onResize: (listener: (width: number, height: number) => void) => void }} stage
+ * @param {{ setViewport: (width: number, height: number, covered: { top: number, bottom: number }) => void }} rig
+ */
+function frameAboveControls(stage, rig) {
+  const controls = /** @type {HTMLElement} */ (document.querySelector('.panel'));
+  const material = /** @type {HTMLElement} */ (document.querySelector('[data-panel="material"]'));
+  const MARGIN = 8; // px of breathing room between the head and a panel
+  let size = { width: 1, height: 1 };
+  const update = () => {
+    const viewport = container.getBoundingClientRect();
+    const bottom = viewport.bottom - controls.getBoundingClientRect().top + MARGIN;
+    const side = material.getBoundingClientRect();
+    const centre = viewport.left + viewport.width / 2;
+    const top = side.left < centre && side.right > centre ? side.bottom - viewport.top + MARGIN : 0;
+    rig.setViewport(size.width, size.height, { top, bottom });
+  };
+  stage.onResize((width, height) => {
+    size = { width, height };
+    update();
+  });
+  new ResizeObserver(update).observe(controls);
 }

@@ -73,3 +73,25 @@ export function fitDistance(radius, verticalFovDeg, aspect, limits = CAMERA_LIMI
   const distance = radius / Math.sin(Math.min(halfV, halfH));
   return Math.min(limits.maxDistance, Math.max(limits.minDistance, distance));
 }
+
+/**
+ * Projection that centres the orbit target in the part of the viewport not covered by UI overlays
+ * (top/bottom insets in CSS px), so framing can keep the whole head clear of the control panel.
+ * Returns the field of view and aspect of that free area (for `fitDistance`) and the vertical
+ * view offset for `camera.setViewOffset` (positive moves the image up). Overlays never take more
+ * than half of the height.
+ * @param {number} verticalFovDeg
+ * @param {number} width
+ * @param {number} height
+ * @param {{ top: number, bottom: number }} insets
+ */
+export function visibleFrame(verticalFovDeg, width, height, insets) {
+  const covered = Math.max(0, insets.top) + Math.max(0, insets.bottom);
+  const scale = covered > height / 2 ? height / 2 / covered : 1;
+  const top = Math.max(0, insets.top) * scale;
+  const bottom = Math.max(0, insets.bottom) * scale;
+  const free = height - top - bottom;
+  if (free === height) return { fov: verticalFovDeg, aspect: width / height, offsetY: 0 };
+  const halfTan = Math.tan((verticalFovDeg * Math.PI) / 360) * (free / height);
+  return { fov: (Math.atan(halfTan) * 360) / Math.PI, aspect: width / free, offsetY: (bottom - top) / 2 };
+}
