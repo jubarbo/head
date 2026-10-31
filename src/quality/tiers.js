@@ -2,7 +2,7 @@
 
 /**
  * @typedef {'low' | 'medium' | 'high'} TierName
- * @typedef {{ maxPixelRatio: number, antialias: boolean, shadows: boolean, shadowMapSize: number, ambientOcclusion: boolean, bloom: boolean, smaa: boolean, textureSize: number }} TierSettings
+ * @typedef {{ maxPixelRatio: number, shadows: boolean, shadowMapSize: number, ambientOcclusion: boolean, bloom: boolean, smaa: boolean, textureSize: number }} TierSettings
  */
 
 /** @type {readonly TierName[]} */
@@ -10,9 +10,9 @@ export const TIER_ORDER = Object.freeze(['low', 'medium', 'high']);
 
 /** @type {Readonly<Record<TierName, TierSettings>>} */
 export const QUALITY_TIERS = Object.freeze({
-  low: { maxPixelRatio: 1, antialias: false, shadows: false, shadowMapSize: 512, ambientOcclusion: false, bloom: false, smaa: false, textureSize: 1024 },
-  medium: { maxPixelRatio: 1.5, antialias: true, shadows: true, shadowMapSize: 1024, ambientOcclusion: false, bloom: true, smaa: true, textureSize: 2048 },
-  high: { maxPixelRatio: 2, antialias: true, shadows: true, shadowMapSize: 2048, ambientOcclusion: true, bloom: true, smaa: true, textureSize: 4096 },
+  low: { maxPixelRatio: 1, shadows: false, shadowMapSize: 512, ambientOcclusion: false, bloom: false, smaa: false, textureSize: 1024 },
+  medium: { maxPixelRatio: 1.5, shadows: true, shadowMapSize: 1024, ambientOcclusion: false, bloom: true, smaa: true, textureSize: 2048 },
+  high: { maxPixelRatio: 2, shadows: true, shadowMapSize: 2048, ambientOcclusion: true, bloom: true, smaa: true, textureSize: 4096 },
 });
 
 /**

@@ -161,3 +161,36 @@ html, body {
 }
 
 .material__more[open] { display: flex; flex-direction: column; gap: 6px; }
+
+/* Loading / status overlay: progress while assets load, then reused for context loss and fatal errors. */
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  background: var(--bg);
+  transition: opacity 0.4s ease, visibility 0.4s;
+}
+.loader[data-state="done"] { opacity: 0; visibility: hidden; }
+.loader[data-state="paused"] { background: rgb(27 26 25 / 0.7); }
+.loader__bar {
+  width: min(240px, 60vw);
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+.loader__bar span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--accent);
+  transform-origin: left;
+  transform: scaleX(var(--progress, 0));
+  transition: transform 0.2s ease-out;
+}
+.loader:is([data-state="error"], [data-state="paused"]) .loader__bar { display: none; }
+.loader__message { margin: 0; color: var(--muted); }

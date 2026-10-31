@@ -65,9 +65,11 @@ describe('baked cuticle textures (T3)', () => {
     expect(readKtx2(files.orm).transfer).toBe(TRANSFER_LINEAR);
   });
 
-  it('serves the Basis transcoder from public/ so it works under the GitHub Pages subpath', () => {
-    expect(existsSync(new URL('basis/basis_transcoder.js', PUBLIC))).toBe(true);
-    expect(existsSync(new URL('basis/basis_transcoder.wasm', PUBLIC))).toBe(true);
+  it("uses three's own Basis transcoder (Vite emits it next to the chunk, so it follows the Pages subpath) and ships no second copy", () => {
+    const ktx2Loader = readFileSync(new URL('../node_modules/three/examples/jsm/loaders/KTX2Loader.js', import.meta.url), 'utf8');
+    expect(ktx2Loader).toContain("new URL( '../libs/basis/basis_transcoder.wasm', import.meta.url )");
+    expect(readFileSync(new URL('../src/materials/textureSet.js', import.meta.url), 'utf8')).not.toContain('setTranscoderPath');
+    expect(existsSync(new URL('basis', PUBLIC))).toBe(false);
   });
 
   it('keeps the first load of every tier (model + HDRI + maps) under 6 MB', () => {

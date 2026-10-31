@@ -9,11 +9,11 @@ const HDRI_URL = `${import.meta.env.BASE_URL}hdri/studio_small_09_1k.hdr`;
  * Renderer, scene, camera and studio lighting. The floor shadow is the baked contact shadow
  * (src/post/createContactShadow.js); the key light's shadow map only self-shadows the head.
  * Tone mapping is applied by the composer's OutputPass, which reads `renderer.toneMapping`.
+ * Antialiasing is SMAA in the composer; the canvas is only its final target, so MSAA is off.
  * @param {HTMLElement} container
- * @param {{ antialias: boolean }} options
  */
-export function createStage(container, { antialias }) {
-  const renderer = new THREE.WebGLRenderer({ antialias, powerPreference: 'high-performance' });
+export function createStage(container) {
+  const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.AgXToneMapping;
   renderer.toneMappingExposure = 1;
@@ -36,13 +36,24 @@ export function createStage(container, { antialias }) {
   rimLight.position.set(-5, 3, -6);
   scene.add(keyLight, rimLight);
 
+  /** @type {THREE.DataTexture | null} kept on the CPU to rebuild the PMREM after a context loss */
+  let hdr = null;
+  /** @type {THREE.WebGLRenderTarget | null} */
+  let environmentTarget = null;
   /** Loads the HDRI as image-based lighting only; the backdrop stays the flat studio gray. */
   async function loadEnvironment() {
+    hdr = await new HDRLoader().loadAsync(HDRI_URL);
+    buildEnvironment();
+  }
+  /** @param {{ contextLost?: boolean }} [options] after a context loss the old target died with the context */
+  function buildEnvironment({ contextLost = false } = {}) {
+    if (!hdr) return;
     const pmrem = new THREE.PMREMGenerator(renderer);
-    const hdr = await new HDRLoader().loadAsync(HDRI_URL);
-    scene.environment = pmrem.fromEquirectangular(hdr).texture;
+    if (!contextLost) environmentTarget?.dispose();
+    environmentTarget = pmrem.fromEquirectangular(hdr);
+    scene.environment = environmentTarget.texture;
     scene.environmentIntensity = 0.9;
-    hdr.dispose();
+    hdr.dispose(); // GPU copy only; the pixel data stays in hdr.image
     pmrem.dispose();
   }
 
@@ -65,5 +76,5 @@ export function createStage(container, { antialias }) {
   new ResizeObserver(resize).observe(container);
   resize();
 
-  return { renderer, scene, camera, keyLight, loadEnvironment, onResize };
+  return { renderer, scene, camera, keyLight, loadEnvironment, rebuildEnvironment: () => buildEnvironment({ contextLost: true }), onResize };
 }

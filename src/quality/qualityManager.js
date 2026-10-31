@@ -1,17 +1,17 @@
 // @ts-check
-import { QUALITY_TIERS, detectInitialTier, stepTier } from './tiers.js';
-import { createFpsMonitor } from './fpsMonitor.js';
+import { QUALITY_TIERS, detectInitialTier } from './tiers.js';
+import { createAdaptiveTier } from './adaptiveTier.js';
 
 /**
- * Applies a quality tier to the renderer and, in auto mode, adapts it from measured fps.
- * Antialiasing is fixed at renderer creation, so it only follows the initial tier.
+ * Applies a quality tier to the renderer and, in auto mode, adapts it from measured fps
+ * (src/quality/adaptiveTier.js). `onChange` also drives tier-dependent assets (cuticle map size).
  * @param {{ renderer: import('three').WebGLRenderer, scene: import('three').Scene, keyLight: import('three').DirectionalLight, post: { setTier: (settings: import('./tiers.js').TierSettings) => void } }} stage
  * @param {(tier: import('./tiers.js').TierName) => void} [onChange]
  */
 export function createQualityManager({ renderer, scene, keyLight, post }, onChange = () => {}) {
-  const monitor = createFpsMonitor();
   let auto = true;
   let tier = initialTier();
+  let adaptive = createAdaptiveTier(tier);
 
   /** @param {import('./tiers.js').TierName} next */
   function apply(next) {
@@ -35,7 +35,6 @@ export function createQualityManager({ renderer, scene, keyLight, post }, onChan
     post.setTier(settings); // after setPixelRatio: the composer copies the renderer's ratio
 
     tier = next;
-    monitor.reset();
     onChange(tier);
   }
 
@@ -48,14 +47,15 @@ export function createQualityManager({ renderer, scene, keyLight, post }, onChan
     /** @param {'auto' | import('./tiers.js').TierName} mode */
     setMode(mode) {
       auto = mode === 'auto';
-      apply(auto ? initialTier() : mode);
+      const next = auto ? initialTier() : mode;
+      adaptive = createAdaptiveTier(next); // back to auto forgets the tiers that failed before
+      apply(next);
     },
     /** @param {number} deltaSeconds */
     sample(deltaSeconds) {
       if (!auto) return;
-      const suggestion = monitor.push(deltaSeconds);
-      if (suggestion === 'down' && tier !== 'low') apply(stepTier(tier, -1));
-      if (suggestion === 'up' && tier !== 'high') apply(stepTier(tier, 1));
+      const next = adaptive.push(deltaSeconds);
+      if (next) apply(next);
     },
   };
 }

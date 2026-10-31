@@ -77,3 +77,29 @@ export function createCuticleMaterial(zone, maps) {
   material.userData.uniforms = uniforms;
   return material;
 }
+
+/**
+ * Swaps the baked maps of materials that already use them (quality tier change). Only the texture
+ * objects change, not which maps exist, so the program is reused. Flat-color materials are skipped:
+ * adding maps would recompile them. The previous textures are disposed once each.
+ * @param {MeshPhysicalMaterial[]} materials
+ * @param {CuticleMaps} maps
+ * @returns {boolean} whether anything was swapped
+ */
+export function swapCuticleMaps(materials, maps) {
+  /** @type {Set<import('three').Texture>} */
+  const previous = new Set();
+  for (const material of materials) {
+    if (!material.map) continue;
+    for (const texture of [material.map, material.normalMap, material.aoMap, material.roughnessMap]) {
+      if (texture) previous.add(texture);
+    }
+    material.map = maps.albedo;
+    material.normalMap = maps.normal;
+    material.aoMap = maps.orm;
+    material.roughnessMap = maps.orm;
+  }
+  for (const texture of [maps.albedo, maps.normal, maps.orm]) previous.delete(texture);
+  for (const texture of previous) texture.dispose();
+  return previous.size > 0;
+}

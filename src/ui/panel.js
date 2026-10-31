@@ -51,12 +51,12 @@ export function bindPanel(rig, overlay, quality) {
   return {
     /** Any manual orbit leaves the preset, so the highlight and the (now misaligned) overlay are cleared. */
     clearActiveView: () => markActive(null),
-    /** @param {number} deltaSeconds */
-    tick(deltaSeconds) {
+    /** @param {number} deltaSeconds @param {string} tier shown next to the fps for on-device testing */
+    tick(deltaSeconds, tier) {
       frames += 1;
       elapsed += deltaSeconds;
       if (elapsed >= 0.5 && fps) {
-        fps.value = `${Math.round(frames / elapsed)} fps`;
+        fps.value = `${Math.round(frames / elapsed)} fps · ${tier}`;
         frames = 0;
         elapsed = 0;
       }

@@ -33,8 +33,8 @@ export function textureSetFor(tier, baseUrl) {
 }
 
 /**
- * Loads the tier's maps through KTX2Loader (Basis Universal transcoder served from public/basis/,
- * so it also resolves under the GitHub Pages subpath).
+ * Loads the tier's maps through KTX2Loader with three's own Basis Universal transcoder, which Vite
+ * emits next to the loader chunk (relative URL, so it also resolves under the GitHub Pages subpath).
  * @param {import('three').WebGLRenderer} renderer needed to pick the GPU's compressed format
  * @param {import('../quality/tiers.js').TierName} tier
  * @returns {Promise<Record<TextureMap, import('three').Texture>>}
@@ -42,7 +42,7 @@ export function textureSetFor(tier, baseUrl) {
 export async function loadTextureSet(renderer, tier) {
   const { KTX2Loader } = await import('three/examples/jsm/loaders/KTX2Loader.js');
   const base = import.meta.env.BASE_URL;
-  const loader = new KTX2Loader().setTranscoderPath(`${base}basis/`).detectSupport(renderer);
+  const loader = new KTX2Loader().detectSupport(renderer);
   const { urls } = textureSetFor(tier, base);
   try {
     const textures = await Promise.all(TEXTURE_MAPS.map((map) => loader.loadAsync(urls[map])));

@@ -9,6 +9,11 @@
   <body>
     <main id="viewport" aria-label="3D viewer of a praying mantis head"></main>
 
+    <div class="loader" data-loader data-state="loading" role="status" aria-live="polite">
+      <div class="loader__bar" aria-hidden="true"><span></span></div>
+      <p class="loader__message" data-loader-message>Loading…</p>
+    </div>
+
     <section class="material" aria-label="Material" data-panel="material" data-ready="false">
       <label class="material__row material__progress">
         <span>Skin</span>

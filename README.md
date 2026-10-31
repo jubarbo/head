@@ -23,7 +23,13 @@ npm run preview   # serve the build locally
 
 Panel buttons jump to the reference views (Front, Side, Top, Bottom) and **Reset view** returns to the framed front view.
 **Reference** overlays the matching crop of the reference sheet and switches to a 6° telephoto lens so the comparison is close to orthographic; orbiting hides the overlay until a view button is pressed again.
-**Quality** defaults to *Auto*: it starts from a device guess and steps between Low / Medium / High from the measured frame rate.
+**Quality** defaults to *Auto*: it starts from a device guess (Medium on touch devices, High on desktops) and, once the scene
+has loaded, steps between Low / Medium / High from the measured frame rate (below 28 fps → down, above 55 fps → up).
+A tier that fell below 28 fps is not tried again until Auto is re-selected, so a 60 Hz display cannot bounce between two tiers.
+Tiers cap the pixel ratio (1 / 1.5 / 2), switch shadows, GTAO, bloom and SMAA, and swap the cuticle maps (1024 on Low,
+2048 otherwise). The readout next to the selector shows the fps and the active tier, for testing on a phone.
+A full-screen overlay shows download progress, a message while a lost WebGL context is being restored, and an error
+when WebGL is unavailable.
 
 The **Material** panel (top right, enabled once the model loads) drives the skin → metal transition: the
 *Skin ↔ Metal* slider, five finishes (Chrome, Gold, Copper, Aged bronze, Titanium) and, under *More*, metal
@@ -61,7 +67,7 @@ Cycles bakes it at 4K (position, normals, zone ids, procedural relief, inside-AO
 normal) and numpy composes the albedo from the palette (olive in cavities, reddish-brown suture lines and eye
 rims) and an ORM map: AO (R), roughness (G), thickness (B). Maps ship as KTX2 (Basis ETC1S, mipmapped) at
 2048 (medium/high tiers) and 1024 (low tier); 4K is held back by the 6 MB first-load budget. The viewer loads
-them with `KTX2Loader` and the Basis transcoder copied to `public/basis/`.
+them with `KTX2Loader` and three's own Basis transcoder (bundled by Vite next to the loader chunk).
 
 Viewer materials (`src/materials/`): the cuticle is a `MeshPhysicalMaterial` with the baked maps, a thin waxy
 clearcoat and a back-light translucency term scaled by the baked thickness (antennae and palps glow when backlit).
