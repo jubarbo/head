@@ -24,7 +24,8 @@ from mathutils.bvhtree import BVHTree
 VOXEL_SIZE = 0.015  # fine enough to carve sutures before decimation
 CAPSULE_TRIANGLES = 60000
 
-# Neutral clay per material zone; T3 replaces these with the real skin/eye/cuticle materials.
+# Neutral clay per material zone. The viewer replaces them by material name (src/materials/) with
+# the baked maps from tools/blender/bake_maps.py; these only show up in other glTF viewers.
 COLORS = {
     "skin": (0.62, 0.62, 0.60, 1.0),
     "eye": (0.42, 0.44, 0.42, 1.0),
@@ -222,7 +223,8 @@ def cone_mesh(base, direction, length, radius, sides=5):
     verts = [base + radius * (math.cos(2 * math.pi * s / sides) * t + math.sin(2 * math.pi * s / sides) * b) for s in range(sides)]
     verts.append(base + d * length)
     tip = sides
-    faces = [(s, (s + 1) % sides, tip) for s in range(sides)] + [tuple(reversed(range(sides)))]
+    # fan-triangulated base: MikkTSpace tangents (glTF export) fail on n-gons
+    faces = [(s, (s + 1) % sides, tip) for s in range(sides)] + [(0, s + 1, s) for s in range(1, sides - 1)]
     return np.array(verts), faces
 
 
@@ -439,17 +441,35 @@ def build_neck():
     object_from_mesh("neck", verts, faces, "skin")
 
 
-def unwrap_all():
-    """Smart UV projection per object, ready for the T3 bakes."""
-    meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
+def is_atlas_material(name):
+    """Materials whose meshes share the baked texture atlas (see bake_maps.py)."""
+    return name in ATLAS_MATERIALS
+
+
+ATLAS_MATERIALS = ("skin", "antenna", "palp", "mandible")
+UV_ISLAND_MARGIN = 0.008  # ~32 px at 4K: room for the bake margin and the smaller mip levels
+
+
+def smart_unwrap(objects):
+    """One smart UV projection over several objects: multi-object editing packs all their islands
+    into a single 0..1 space, so they can share one set of baked maps without overlapping."""
     bpy.ops.object.select_all(action="DESELECT")
-    for obj in meshes:
+    for obj in objects:
         obj.select_set(True)
-    bpy.context.view_layer.objects.active = meshes[0]
+    bpy.context.view_layer.objects.active = objects[0]
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.003)
+    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=UV_ISLAND_MARGIN)
     bpy.ops.object.mode_set(mode="OBJECT")
+
+
+def unwrap_all():
+    """The cuticle parts share the bake atlas; eyes and ocelli are shaded procedurally in object
+    space, so they get their own UVs (kept for glTF validity) and leave the atlas to the cuticle."""
+    meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
+    atlas = [o for o in meshes if is_atlas_material(o.data.materials[0].name)]
+    smart_unwrap(atlas)
+    smart_unwrap([o for o in meshes if o not in atlas])
 
 
 def main():
@@ -473,8 +493,10 @@ def main():
     total = sum(triangle_count(o) for o in bpy.context.scene.objects if o.type == "MESH")
     print(f"capsule triangles: {triangle_count(capsule)}, total: {total}")
 
-    bpy.ops.export_scene.gltf(filepath=output, export_format="GLB", export_apply=True, export_yup=True, export_extras=True)
+    bpy.ops.export_scene.gltf(filepath=output, export_format="GLB", export_apply=True, export_yup=True, export_extras=True,
+                              export_tangents=True)  # the baked tangent-space normal map needs Blender's MikkTSpace
     print(f"exported {output} ({os.path.getsize(output) / 1024:.0f} KiB)")
 
 
-main()
+if __name__ == "__main__":  # bake_maps.py imports the shape constants and suture helpers
+    main()

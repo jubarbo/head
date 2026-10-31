@@ -16,7 +16,7 @@ const startTier = detectInitialTier({
   hardwareConcurrency: navigator.hardwareConcurrency,
 });
 const stage = createStage(container, { antialias: QUALITY_TIERS[startTier].antialias });
-loadHead()
+loadHead(stage.renderer, startTier)
   .then((head) => stage.scene.add(head))
   .catch((error) => {
     console.error('Head model failed to load, showing the placeholder', error);

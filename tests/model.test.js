@@ -48,6 +48,13 @@ describe('mantis head model (T2 acceptance)', () => {
     expect(withoutUv).toEqual([]);
   });
 
+  it('carries MikkTSpace tangents on the cuticle meshes for the baked tangent-space normal map (T3)', () => {
+    const cuticle = gltf.meshes.filter((mesh) => mesh.primitives.some((p) => ['skin', 'antenna', 'palp', 'mandible'].includes(gltf.materials[p.material]?.name)));
+    expect(cuticle.length).toBeGreaterThan(10);
+    const withoutTangents = cuticle.filter((mesh) => mesh.primitives.some((p) => p.attributes.TANGENT === undefined)).map((mesh) => mesh.name);
+    expect(withoutTangents).toEqual([]);
+  });
+
   it('stays within the budget: < 150k triangles, < 3 MB, meshopt-compressed', () => {
     const triangles = gltf.meshes.flatMap((m) => m.primitives).reduce((sum, p) => sum + gltf.accessors[p.indices].count / 3, 0);
     expect(triangles).toBeLessThan(150_000);
