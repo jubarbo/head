@@ -48,7 +48,7 @@ mantis/
 | T4 | Lighting + post: key/rim + HDRI, contact shadows, GTAO (L12), AgX, bloom, SMAA | S4, S5 | inline (no writer trigger) | M | done (approved, L14) | `c74771c` (L13) |
 | T5 | Skin → metal: advance mask, front edge, PBR interpolation, 5 presets, UI panel | S3 | inline (no writer trigger) | M/L | done (approved, L17) | `4201909` (L16) |
 | T6 | Performance + mobile: adaptive fps monitor, DPR cap, texture tiers, loader, context-loss recovery | S5 | inline (no writer trigger) | M | done (approved, L20) | `25a1061` (L19) |
-| T7 | QA + delivery: visual snapshots, Safari iOS check, README, GitHub Pages workflow | S6 | inline (no writer trigger) | S | done; awaiting approval (L22) — iOS/WebKit run and real Pages deploy pending on user | `cad11d7` (L22) |
+| T7 | QA + delivery: visual snapshots, Safari iOS check, README, GitHub Pages workflow | S6 | inline (no writer trigger) | S | done (approved, L25) — iOS/WebKit run and real Pages deploy pending on user | `cad11d7` (L22) |
 
 ### Acceptance criteria per phase
 
@@ -171,3 +171,4 @@ mantis/
   Risk: item 5 (CI workflow and a new dev dependency). The verifier passed and the native review approved it.
 - **L23 (2026-10-31, user, verbatim):** "aplica las tres mejoras y luego apruebo T7" (apply follow-ups R1-001, R3-005, R3-003).
 - **L24 (2026-10-31, T7 follow-ups, commit `1e25724`):** R1-001: workflow-level permissions are now `contents: read`; `pages: write` + `id-token: write` only on the deploy job; `configure-pages` removed (optional; base is relative). R3-005: chrome test clicks Chrome explicitly. R3-003: README documents creating iphone-webkit baselines on the first `test:ios` run. Checks: `npm test` 89/89; workflow YAML parses; `test:visual -g "full chrome|subpath"` 2/2 against the existing baselines. Native review: high (workflow shell), user granted, lens risk, approved with no findings and acknowledged (lineage `review-dad8d7767551f8d4`). Remaining follow-ups: R1-002 (SHA-pinned actions), R3-001 (Low snapshot vs async texture swap). Awaiting the user's T7 approval.
+- **L25 (2026-10-31, user, verbatim):** "sí" (T7 approved; feature closed). Open, user-owned: GitHub remote + push/merge to `main` + Pages source "GitHub Actions"; WebKit deps and iOS baselines; real-device fps. Optional follow-ups: R1-002, R3-001, bottom panel covering mandibles at 960×600, manual sculpt pass, Spanish UI.
