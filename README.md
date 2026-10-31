@@ -11,7 +11,34 @@ npm run dev       # development server
 npm test          # unit tests (Vitest)
 npm run build     # static build in dist/ (relative base, GitHub Pages ready)
 npm run preview   # serve the build locally
+npm run test:visual  # Playwright: delivery check + visual snapshots (desktop Chromium)
+npm run test:ios     # same checks in WebKit with an iPhone 13 viewport
 ```
+
+## Visual and delivery tests (Playwright)
+
+`playwright.config.js` builds the app and serves `dist/` with `vite preview --base /mantis/`, so every check runs
+under a GitHub Pages-like subpath. `tests/visual/delivery.spec.js` asserts that the GLB, HDRI, KTX2 maps and the
+Basis transcoder (`.wasm`) all load from inside that subpath, the real model (not the placeholder) is shown, and
+there are no console errors or failed requests. `tests/visual/snapshots.spec.js` compares the four reference views,
+gold at 50 %, full chrome and the Low tier against the PNGs in `tests/visual/__snapshots__/<project>/`
+(quality pinned to a manual tier, fps readout masked).
+
+Headless browsers render WebGL on the CPU (SwiftShader), so a run takes a few minutes and the baselines are
+specific to the machine that wrote them. After an intended visual change, inspect the diff in
+`test-results/` and refresh the baselines with `npx playwright test --project=desktop-chromium --update-snapshots`.
+
+The `iphone-webkit` project uses Playwright's WebKit build (the Safari engine) with the iPhone 13 viewport,
+touch and user agent. On Linux it needs system libraries once: `sudo npx playwright install-deps webkit`.
+It is a stand-in, not a substitute, for a real iPhone: GPU limits, memory and fps must still be checked on a device.
+
+## Deploy (GitHub Pages)
+
+`.github/workflows/pages.yml` runs on every push to `main` (or manually): `npm ci`, unit tests, `vite build`, then
+publishes `dist/` with the official Pages actions. The build uses a relative `base`, so it works at
+`https://<user>.github.io/<repository>/` without configuration. One-time setup: push the repository to GitHub and
+set **Settings → Pages → Source** to **GitHub Actions**. Model and texture builds are not run in CI (they need
+Blender and KTX-Software); their outputs in `public/` are committed.
 
 ## Controls
 

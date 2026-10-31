@@ -11,7 +11,9 @@
     "model:build": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/build_head.py -- assets-src/models/mantis-head.raw.glb && gltf-transform meshopt assets-src/models/mantis-head.raw.glb public/models/mantis-head.glb && npm run textures:build",
     "textures:build": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/bake_maps.py -- assets-src/models/mantis-head.raw.glb assets-src/textures public/textures",
     "model:check": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/check_proportions.py -- assets-src/models/mantis-head.raw.glb assets-src/reference/calibration.json",
-    "reference:build": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/build_reference.py -- assets-src/reference/mantis-reference-sheet.png assets-src/reference/calibration.json public/reference"
+    "reference:build": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/build_reference.py -- assets-src/reference/mantis-reference-sheet.png assets-src/reference/calibration.json public/reference",
+    "test:visual": "playwright test --project=desktop-chromium",
+    "test:ios": "playwright test --project=iphone-webkit"
   },
   "dependencies": {
     "camera-controls": "^3.1.0",
@@ -19,6 +21,7 @@
   },
   "devDependencies": {
     "@gltf-transform/cli": "^4.5.1",
+    "@playwright/test": "^1.64.1",
     "playwright": "^1.64.1",
     "vite": "^8.3.5",
     "vitest": "^4.1.12"
