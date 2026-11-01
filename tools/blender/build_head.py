@@ -35,14 +35,15 @@ COLORS = {
     "mandible": (0.20, 0.19, 0.18, 1.0),
 }
 
-# --- capsule volumes: (name, center, radii); unioned by voxel remesh ---------------------------
+# --- capsule volumes: (name, center, radii[, ellipsoid_mesh options]); unioned by voxel remesh ---
+# Fitted to the sheet with `npm run model:silhouette` (T8b, see odd/tasks/mantis-head-3d.md L32-L33).
 CAPSULE_PARTS = [
-    ("vertex", (0.0, 1.05, -0.15), (1.3, 0.7, 1.05)),
-    ("frons", (0.0, 0.45, 0.7), (0.85, 0.85, 0.45)),  # flat shield, as in the front view
-    ("occiput", (0.0, 0.35, -0.6), (0.85, 0.85, 0.65)),
-    ("gena_l", (0.5, -0.3, 0.55), (0.48, 0.5, 0.55)),
-    ("gena_r", (-0.5, -0.3, 0.55), (0.48, 0.5, 0.55)),
-    ("clypeus", (0.0, -0.55, 0.8), (0.62, 0.45, 0.48)),
+    ("vertex", (0.0, 1.1, -0.25), (1.125, 0.67, 0.92), {"squareness": 0.7}),  # broad, flat-topped vertex
+    ("frons", (0.0, 0.45, 0.7), (0.875, 0.85, 0.45)),  # flat shield, as in the front view
+    ("occiput", (0.0, 0.35, -0.45), (0.85, 0.85, 0.85)),
+    ("gena_l", (0.56, -0.24, 0.45), (0.53, 0.5, 0.55)),
+    ("gena_r", (-0.56, -0.24, 0.45), (0.53, 0.5, 0.55)),
+    ("clypeus", (0.0, -0.55, 0.84), (0.62, 0.45, 0.48)),
     ("mouth_base", (0.0, -0.95, 0.85), (0.45, 0.4, 0.35)),
 ]
 
@@ -54,14 +55,14 @@ SUBGENAL = ((0.68, 0.13), (0.48, -0.89))
 GROOVE = {"depth": 0.035, "width": 0.03}
 
 EYE = {
-    "center": (1.28, 0.6, -0.25),
-    "radii": (0.7, 1.15, 0.75),
-    "tilt_x_deg": -45.0,  # long axis runs from lower-front to upper-back (side view)
+    "center": (1.28, 0.6, 0.45),  # forward enough that the frons does not cover the inner rim (front view)
+    "radii": (0.7, 1.09, 0.75),
+    "tilt_x_deg": -42.0,  # long axis runs from lower-front to upper-back (side view)
     "lower_taper": 0.35,  # egg shape: narrower toward the bottom
-    "lower_inset": 0.5,  # the lower half curves in toward the face (front view)
+    "lower_inset": 0.3,  # the lower half curves in toward the face (front view)
 }
 
-LABRUM = {"center": (0.0, -0.85, 1.08), "radii": (0.48, 0.43, 0.28)}
+LABRUM = {"center": (0.0, -0.91, 1.08), "radii": (0.48, 0.43, 0.28)}
 LABIUM = {"center": (0.0, -1.3, 0.75), "radii": (0.32, 0.12, 0.28)}
 MAXILLA = {"center": (0.42, -1.15, 0.9), "radii": (0.13, 0.3, 0.12)}
 
@@ -78,7 +79,7 @@ ANTENNA_DIRECTION = (0.45, 0.7, -0.55)  # up, out and back (front and top views)
 ANTENNA = {"scape": (0.25, 0.075), "pedicel": (0.15, 0.055), "flagellum_length": 5.0, "flagellum_segments": 50,
            "radius_base": 0.045, "radius_tip": 0.012, "droop": 0.35}
 OCELLI_XY = [("ocellus_m", (0.0, 1.3)), ("ocellus_l", (0.13, 1.18)), ("ocellus_r", (-0.13, 1.18))]
-NECK = [(0.0, 0.0, -0.55), (0.0, -1.6, -1.15), (0.0, -2.7, -1.6)]  # drops under the occiput, leaning back
+NECK = [(0.0, 0.1, -0.5), (0.0, -0.5, -1.3), (0.0, -1.0, -2.3)]  # drops back from the occiput; the steepest path the head still hides in the front view
 
 
 # --- frame and geometry helpers ------------------------------------------------------------------
@@ -98,6 +99,8 @@ def rotation(axis, degrees):
     c, s = math.cos(a), math.sin(a)
     if axis == "x":
         return np.array([[1, 0, 0], [0, c, -s], [0, s, c]])
+    if axis == "z":
+        return np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
     raise ValueError(axis)
 
 
@@ -142,14 +145,21 @@ def object_from_mesh(name, verts, faces, mat_name, **extras):
     return obj
 
 
-def ellipsoid_mesh(center, radii, matrix=None, lower_taper=0.0, lower_inset=0.0, mirror=False, segments=64, rings=40):
+def squared(value, exponent):
+    """Superellipsoid profile: exponent 1 keeps the ellipse, < 1 flattens the sides into a rounded box."""
+    return math.copysign(abs(value) ** exponent, value)
+
+
+def ellipsoid_mesh(center, radii, matrix=None, lower_taper=0.0, lower_inset=0.0, mirror=False, segments=64, rings=40,
+                   squareness=1.0):
     """Local +X is "outward": the lower half tapers and shifts toward -X. `mirror` flips X."""
     verts = []
     for i in range(1, rings):
         phi = math.pi * i / rings
         for j in range(segments):
             theta = 2 * math.pi * j / segments
-            x, y, z = math.sin(phi) * math.cos(theta), math.cos(phi), math.sin(phi) * math.sin(theta)
+            sp, cp = squared(math.sin(phi), squareness), squared(math.cos(phi), squareness)
+            x, y, z = sp * squared(math.cos(theta), squareness), cp, sp * squared(math.sin(theta), squareness)
             low = max(0.0, -y)
             taper = 1.0 - lower_taper * low
             inset = lower_inset * low * low
@@ -319,8 +329,8 @@ def carve_sutures(obj):
 
 def build_capsule():
     parts = []
-    for name, center, radii in CAPSULE_PARTS:
-        verts, faces = ellipsoid_mesh(center, radii)
+    for name, center, radii, *shape in CAPSULE_PARTS:
+        verts, faces = ellipsoid_mesh(center, radii, **(shape[0] if shape else {}))
         parts.append(object_from_mesh(name, verts, faces, "skin"))
     bpy.ops.object.select_all(action="DESELECT")
     for part in parts:
@@ -352,7 +362,8 @@ def surface_from_front(bvh, x, y):
 # --- parts ---------------------------------------------------------------------------------------
 
 def build_eyes():
-    matrix = rotation("x", EYE["tilt_x_deg"])
+    # roll (front view) after tilt (side view); positive roll leans the top of the left eye outward
+    matrix = rotation("z", -EYE.get("roll_z_deg", 0.0)) @ rotation("x", EYE["tilt_x_deg"])
     for suffix, mirror in (("l", False), ("r", True)):
         verts, faces = ellipsoid_mesh(EYE["center"], EYE["radii"], matrix, EYE["lower_taper"], EYE["lower_inset"], mirror=mirror)
         object_from_mesh(f"eye_{suffix}", verts, faces, "eye")
@@ -437,7 +448,7 @@ def build_mouthparts():
 
 
 def build_neck():
-    verts, faces, _, _ = tube_mesh(NECK, lambda index, t: 0.65 - 0.05 * (index + t) / 2, sides=32, step=0.1)
+    verts, faces, _, _ = tube_mesh(NECK, lambda index, t: 0.5 - 0.04 * (index + t) / 2, sides=32, step=0.1)
     object_from_mesh("neck", verts, faces, "skin")
 
 

@@ -95,7 +95,7 @@ lines in `calibration.json`. In the diff images green is shared, red is model on
 In the front view it also uses a depth buffer to measure the visible eyes against the hand-traced `eyeOutlinePx`
 polygons (`front-eyes-diff.png`) and to count the pixels where the neck is the front-most surface (the sheet hides
 it). It only reports by default; pass thresholds to fail on them, e.g.
-`npm run model:silhouette -- --min-front 0.96 --min-right 0.92 --min-eyes 0.92 --max-neck 0`. Top and bottom
+`npm run model:silhouette -- --min-front 0.945 --min-right 0.895 --min-eyes 0.93 --max-neck 0` (the T8b acceptance). Top and bottom
 views are perspective shots on the sheet, so they stay a visual comparison (`Reference` toggle in the viewer).
 
 `npm test` also checks the published GLB: required anatomical parts, segment counts (5-segment maxillary
