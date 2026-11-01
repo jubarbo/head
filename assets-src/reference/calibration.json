@@ -5,13 +5,20 @@
     "front": {
       "crop": [0, 60, 560, 636], "mirror": false,
       "originPx": [266.5, 327], "originUV": [0, 0], "unitsPerPx": 0.007883,
-      "axes": { "u": "+x", "v": "+y" }
+      "axes": { "u": "+x", "v": "+y" },
+      "silhouetteClip": [
+        { "from": [2.5, 1.7], "to": [-2.5, 1.7], "note": "above the vertex only antennae remain" }
+      ]
     },
     "right": {
       "crop": [563, 60, 912, 636], "mirror": true,
       "note": "The sheet's large lateral view shows the face pointing left, mirroring its own orthographic 'Derecha' view; it is mirrored so the face points to +Z like the camera's right view.",
       "originPx": [165, 293.5], "originUV": [0, 0], "unitsPerPx": 0.008685,
-      "axes": { "u": "+z", "v": "+y" }
+      "axes": { "u": "+z", "v": "+y" },
+      "silhouetteClip": [
+        { "from": [2.5, 1.8], "to": [-2.5, 1.8], "note": "above the vertex only the antenna remains" },
+        { "from": [-1.259, 0.03], "to": [0.738, -1.967], "note": "below and behind the gena the sheet shows pronotum and forelegs, not head" }
+      ]
     },
     "top": {
       "crop": [915, 40, 1254, 350], "mirror": false,

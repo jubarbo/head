@@ -11,6 +11,7 @@
     "model:build": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/build_head.py -- assets-src/models/mantis-head.raw.glb && gltf-transform meshopt assets-src/models/mantis-head.raw.glb public/models/mantis-head.glb && npm run textures:build",
     "textures:build": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/bake_maps.py -- assets-src/models/mantis-head.raw.glb assets-src/textures public/textures",
     "model:check": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/check_proportions.py -- assets-src/models/mantis-head.raw.glb assets-src/reference/calibration.json",
+    "model:silhouette": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/check_silhouette.py -- assets-src/models/mantis-head.raw.glb assets-src/reference/calibration.json assets-src/reference/mantis-reference-sheet.png test-results/silhouette",
     "reference:build": "blender -b --factory-startup --python-exit-code 1 --python tools/blender/build_reference.py -- assets-src/reference/mantis-reference-sheet.png assets-src/reference/calibration.json public/reference",
     "test:visual": "playwright test --project=desktop-chromium",
     "test:ios": "playwright test --project=iphone-webkit"

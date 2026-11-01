@@ -83,8 +83,16 @@ npm run model:build       # tools/blender/build_head.py -> assets-src/models/man
 npm run textures:build    # tools/blender/bake_maps.py: bakes the cuticle atlas of the raw GLB (Cycles CPU)
                           #   -> assets-src/textures/*.png (ignored) -> public/textures/*.ktx2
 npm run model:check       # measures the raw GLB against assets-src/reference/calibration.json (exit 1 on failure)
+npm run model:silhouette  # front/right silhouette overlap (IoU) of the raw GLB vs the reference sheet
+                          #   -> test-results/silhouette/{front,right}-diff.png + report.json
 npm run reference:build   # crops the reference sheet into public/reference/*.webp
 ```
+
+`model:silhouette` rasterizes the model on the same pixel grid as each sheet crop and compares head volumes:
+both masks drop thin parts (antennae, palp tips), fill holes and are clipped by the view's `silhouetteClip`
+lines in `calibration.json`. In the diff images green is shared, red is model only and blue is reference only.
+It only reports by default; pass `-- --min-front 0.95 --min-right 0.9` to fail below a threshold. Top and bottom
+views are perspective shots on the sheet, so they stay a visual comparison (`Reference` toggle in the viewer).
 
 `npm test` also checks the published GLB: required anatomical parts, segment counts (5-segment maxillary
 palps, 3-segment labial palps, flagellum ≥ 40 segments with setae, toothed mandibles), carved sutures,
