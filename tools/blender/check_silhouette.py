@@ -1,19 +1,25 @@
-"""Compare the head's orthographic silhouette with the reference sheet (front and right views).
+"""Compare the head with the reference sheet: silhouettes (front, right), eyes and neck (front).
 
 Usage:
   blender -b --factory-startup --python-exit-code 1 --python tools/blender/check_silhouette.py -- \
       assets-src/models/mantis-head.raw.glb assets-src/reference/calibration.json \
-      assets-src/reference/mantis-reference-sheet.png assets-src/reference/silhouette [--min-front 0.9 --min-right 0.85]
+      assets-src/reference/mantis-reference-sheet.png test-results/silhouette \
+      [--min-front 0.96] [--min-right 0.92] [--min-eyes 0.9] [--max-neck 0]
 
 For each view the model is rasterized on the same pixel grid as the sheet crop (origin, scale and mirroring
-from calibration.json). Both masks get the same treatment: a morphological opening that drops thin parts
-(antennae, palp tips) and hole filling, so the score compares head volumes, not thresholding artifacts.
-Antennae and the neck are excluded from the model, as in check_proportions.py, and both masks are clipped
+from calibration.json). Both silhouette masks get the same treatment: a morphological opening that drops thin
+parts (antennae, palp tips) and hole filling, so the score compares head volumes, not thresholding artifacts.
+Antennae and the neck are excluded from the silhouette, as in check_proportions.py, and both masks are clipped
 by the view's `silhouetteClip` lines in calibration.json (antennae above the vertex; pronotum and forelegs
 behind the gena in the right view).
 
-Writes <out dir>/<view>-diff.png (green: both, red: model only, blue: reference only) and report.json,
-prints the IoU per view and exits non-zero only when a --min-<view> threshold is given and not met.
+Front view only, with a depth buffer (the camera looks down -Z):
+- eyes: IoU between the visible eye pixels of the model and the hand-traced `eyeOutlinePx` polygons
+  (crop pixels of the front view, traced along the eye rim of the sheet);
+- neck: number of pixels where the neck is the front-most surface. The sheet hides the neck in this view.
+
+Writes <out dir>/{front,right}-diff.png and front-eyes-diff.png (green: both, red: model only, blue:
+reference only), report.json, prints the scores and exits non-zero only when a given threshold is not met.
 Top and bottom views are perspective shots on the sheet, so they stay a visual comparison.
 """
 
@@ -26,29 +32,38 @@ import bpy
 import numpy as np
 
 VIEWS = ("front", "right")
-EXCLUDED_PREFIXES = ("antenna", "neck")
+SILHOUETTE_EXCLUDED = ("antenna", "neck")
+EYE_PREFIX = "eye"
+NECK_PREFIX = "neck"
 OPEN_RADIUS = 4  # px; removes antennae (~3-6 px wide on the sheet) and keeps the head volume
 CLOSE_RADIUS = 2  # px; closes thin dark gaps (sutures, eye rims) inside the reference silhouette
 BACKGROUND_DELTA = 0.06  # luminance above the backdrop median that counts as subject
 
+# option -> (report key, comparison)
+GATES = {
+    "--min-front": (("front", "iou"), "min"),
+    "--min-right": (("right", "iou"), "min"),
+    "--min-eyes": (("frontEyes", "iou"), "min"),
+    "--max-neck": (("frontNeck", "visiblePx"), "max"),
+}
+
 
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    positional, minimums = [], {}
+    positional, gates = [], {}
     i = 0
     while i < len(argv):
-        if argv[i].startswith("--min-"):
-            view = argv[i][len("--min-"):]
-            if view not in VIEWS or i + 1 >= len(argv):
+        if argv[i].startswith("--"):
+            if argv[i] not in GATES or i + 1 >= len(argv):
                 raise SystemExit(f"unknown option or missing value: {argv[i]}")
-            minimums[view] = float(argv[i + 1])
+            gates[argv[i]] = float(argv[i + 1])
             i += 2
         else:
             positional.append(argv[i])
             i += 1
     if len(positional) != 4:
-        raise SystemExit("expected: <model.glb> <calibration.json> <sheet.png> <out dir> [--min-front X] [--min-right Y]")
-    return positional, minimums
+        raise SystemExit("expected: <model.glb> <calibration.json> <sheet.png> <out dir> [" + "] [".join(f"{g} N" for g in GATES) + "]")
+    return positional, gates
 
 
 # --- binary morphology (numpy only; Blender ships without scipy) -------------------------------------------
@@ -152,17 +167,36 @@ def reference_mask(pixels, view):
     return normalize(closed & clip_region(view, mask.shape))
 
 
-# --- model masks -------------------------------------------------------------------------------------------
+def polygon_mask(polygons, shape):
+    """Even-odd fill of pixel centers inside any polygon (crop pixel coordinates)."""
+    h, w = shape
+    ys, xs = np.mgrid[0:h, 0:w]
+    px, py = xs + 0.5, ys + 0.5
+    mask = np.zeros(shape, dtype=bool)
+    for polygon in polygons:
+        inside = np.zeros(shape, dtype=bool)
+        points = np.asarray(polygon, dtype=np.float64)
+        for (ax, ay), (bx, by) in zip(points, np.roll(points, -1, axis=0)):
+            if ay == by:
+                continue
+            crosses = (ay > py) != (by > py)
+            x_at = ax + (py - ay) * (bx - ax) / (by - ay)
+            inside ^= crosses & (px < x_at)
+        mask |= inside
+    return mask
 
-def load_triangles(glb_path):
-    """World-space triangles in the web frame (+Y up, face toward +Z), antennae and neck excluded."""
+
+# --- model rasterization -----------------------------------------------------------------------------------
+
+def load_parts(glb_path):
+    """{object name: world-space triangles (n, 3, 3)} in the web frame (+Y up, face toward +Z)."""
     if not os.path.exists(glb_path):
         raise SystemExit(f"model not found: {glb_path}")
     bpy.ops.import_scene.gltf(filepath=glb_path)
     depsgraph = bpy.context.evaluated_depsgraph_get()
-    triangles = []
+    parts = {}
     for obj in bpy.context.scene.objects:
-        if obj.type != "MESH" or obj.name.lower().startswith(EXCLUDED_PREFIXES):
+        if obj.type != "MESH":
             continue
         mesh = obj.evaluated_get(depsgraph).to_mesh()
         mesh.calc_loop_triangles()
@@ -174,10 +208,15 @@ def load_triangles(glb_path):
         co = np.column_stack([co[:, 0], co[:, 2], -co[:, 1]])  # Blender (x, y, z) → glTF (x, z, -y)
         indices = np.empty(len(mesh.loop_triangles) * 3, dtype=np.int64)
         mesh.loop_triangles.foreach_get("vertices", indices)
-        triangles.append(co[indices.reshape(-1, 3)])
-    if not triangles:
-        raise SystemExit("no measurable mesh objects in the model")
-    return np.concatenate(triangles)
+        parts[obj.name.lower()] = co[indices.reshape(-1, 3)]
+    return parts
+
+
+def select(parts, predicate):
+    chosen = [t for name, t in parts.items() if predicate(name)]
+    if not chosen:
+        raise SystemExit("no matching mesh objects in the model")
+    return np.concatenate(chosen)
 
 
 AXIS = {"+x": (0, 1.0), "+y": (1, 1.0), "+z": (2, 1.0), "-z": (2, -1.0)}
@@ -193,25 +232,50 @@ def project(triangles, view):
     return np.stack([px, py], axis=-1)
 
 
-def rasterize(triangles_px, shape):
-    """Pixel-center coverage of 2D triangles (edge functions, either winding)."""
+def covered(triangle, shape):
+    """Bounding-box slices and barycentric weights of the pixel centers inside one 2D triangle."""
+    (ax, ay), (bx, by), (cx, cy) = triangle
     h, w = shape
+    x0, x1 = max(int(np.floor(min(ax, bx, cx))), 0), min(int(np.ceil(max(ax, bx, cx))), w - 1)
+    y0, y1 = max(int(np.floor(min(ay, by, cy))), 0), min(int(np.ceil(max(ay, by, cy))), h - 1)
+    area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
+    if x0 > x1 or y0 > y1 or area == 0:
+        return None
+    ys, xs = np.mgrid[y0:y1 + 1, x0:x1 + 1]
+    px, py = xs + 0.5, ys + 0.5
+    wa = ((cx - bx) * (py - by) - (cy - by) * (px - bx)) / area
+    wb = ((ax - cx) * (py - cy) - (ay - cy) * (px - cx)) / area
+    wc = ((bx - ax) * (py - ay) - (by - ay) * (px - ax)) / area
+    inside = (wa >= 0) & (wb >= 0) & (wc >= 0)
+    return (slice(y0, y1 + 1), slice(x0, x1 + 1)), (wa, wb, wc), inside
+
+
+def rasterize(triangles_px, shape):
+    """Pixel-center coverage of 2D triangles (either winding)."""
     mask = np.zeros(shape, dtype=bool)
-    for (ax, ay), (bx, by), (cx, cy) in triangles_px:
-        x0, x1 = max(int(np.floor(min(ax, bx, cx))), 0), min(int(np.ceil(max(ax, bx, cx))), w - 1)
-        y0, y1 = max(int(np.floor(min(ay, by, cy))), 0), min(int(np.ceil(max(ay, by, cy))), h - 1)
-        if x0 > x1 or y0 > y1:
-            continue
-        area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
-        if area == 0:
-            continue
-        ys, xs = np.mgrid[y0:y1 + 1, x0:x1 + 1]
-        px, py = xs + 0.5, ys + 0.5
-        e0 = ((bx - ax) * (py - ay) - (by - ay) * (px - ax)) * area
-        e1 = ((cx - bx) * (py - by) - (cy - by) * (px - bx)) * area
-        e2 = ((ax - cx) * (py - cy) - (ay - cy) * (px - cx)) * area
-        mask[y0:y1 + 1, x0:x1 + 1] |= (e0 >= 0) & (e1 >= 0) & (e2 >= 0)
+    for triangle in triangles_px:
+        hit = covered(triangle, shape)
+        if hit:
+            window, _, inside = hit
+            mask[window] |= inside
     return mask
+
+
+def front_most(labelled, view, shape):
+    """Label of the nearest surface per pixel in the front view (larger z is nearer); -1 for none."""
+    depth = np.full(shape, -np.inf)
+    labels = np.full(shape, -1, dtype=np.int32)
+    for label, triangles in enumerate(labelled):
+        projected = project(triangles, view)
+        for triangle, z in zip(projected, triangles[..., 2]):
+            hit = covered(triangle, shape)
+            if not hit:
+                continue
+            window, (wa, wb, wc), inside = hit
+            nearer = inside & (wa * z[0] + wb * z[1] + wc * z[2] > depth[window])
+            depth[window] = np.where(nearer, wa * z[0] + wb * z[1] + wc * z[2], depth[window])
+            labels[window] = np.where(nearer, label, labels[window])
+    return labels
 
 
 # --- output ------------------------------------------------------------------------------------------------
@@ -230,8 +294,19 @@ def save_diff(model, reference, path):
     image.save()
 
 
+def overlap(model, reference):
+    both = int((model & reference).sum())
+    union = int((model | reference).sum())
+    return {
+        "iou": round(both / union, 4) if union else 0.0,
+        "modelOnlyPx": int((model & ~reference).sum()),
+        "referenceOnlyPx": int((~model & reference).sum()),
+        "overlapPx": both,
+    }
+
+
 def main():
-    (glb_path, calibration_path, sheet_path, out_dir), minimums = parse_args()
+    (glb_path, calibration_path, sheet_path, out_dir), gates = parse_args()
     glb_path, calibration_path, sheet_path, out_dir = (os.path.abspath(p) for p in (glb_path, calibration_path, sheet_path, out_dir))
     with open(calibration_path, encoding="utf-8") as f:
         views = json.load(f)["views"]
@@ -239,35 +314,49 @@ def main():
 
     bpy.ops.wm.read_factory_settings(use_empty=True)
     pixels = sheet_pixels(sheet_path)
-    triangles = load_triangles(glb_path)
+    parts = load_parts(glb_path)
+    head = select(parts, lambda n: not n.startswith(SILHOUETTE_EXCLUDED))
 
     report = {}
     for name in VIEWS:
         view = views[name]
         reference = reference_mask(pixels, view)
-        model = normalize(rasterize(project(triangles, view), reference.shape) & clip_region(view, reference.shape))
-        both = int((model & reference).sum())
-        union = int((model | reference).sum())
-        report[name] = {
-            "iou": round(both / union, 4) if union else 0.0,
-            "modelOnlyPx": int((model & ~reference).sum()),
-            "referenceOnlyPx": int((~model & reference).sum()),
-            "overlapPx": both,
-        }
+        model = normalize(rasterize(project(head, view), reference.shape) & clip_region(view, reference.shape))
+        report[name] = overlap(model, reference)
         save_diff(model, reference, os.path.join(out_dir, f"{name}-diff.png"))
+
+    front = views["front"]
+    shape = (front["crop"][3] - front["crop"][1], front["crop"][2] - front["crop"][0])
+    labelled = [
+        select(parts, lambda n: n.startswith(EYE_PREFIX)),
+        select(parts, lambda n: n.startswith(NECK_PREFIX)),
+        select(parts, lambda n: not n.startswith((EYE_PREFIX, NECK_PREFIX, "antenna"))),
+    ]
+    labels = front_most(labelled, front, shape)
+    eyes_model = labels == 0
+    eyes_reference = polygon_mask(front["eyeOutlinePx"], shape)
+    report["frontEyes"] = overlap(eyes_model, eyes_reference)
+    report["frontNeck"] = {"visiblePx": int((labels == 1).sum())}
+    save_diff(eyes_model, eyes_reference, os.path.join(out_dir, "front-eyes-diff.png"))
 
     with open(os.path.join(out_dir, "report.json"), "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
         f.write("\n")
 
-    failures = 0
-    print(f"\n{'view':8s} {'IoU':>7s} {'min':>6s} {'model only':>11s} {'ref only':>9s}")
-    for name, row in report.items():
-        minimum = minimums.get(name)
-        ok = minimum is None or row["iou"] >= minimum
-        failures += not ok
-        shown_min = "-" if minimum is None else f"{minimum:.2f}"
-        print(f"{name:8s} {row['iou']:7.4f} {shown_min:>6s} {row['modelOnlyPx']:11d} {row['referenceOnlyPx']:9d} {'' if ok else 'FAIL'}")
+    failures = []
+    for option, ((key, field), kind) in GATES.items():
+        if option in gates:
+            value, limit = report[key][field], gates[option]
+            if (kind == "min" and value < limit) or (kind == "max" and value > limit):
+                failures.append(f"{key} {field} {value} {'<' if kind == 'min' else '>'} {limit}")
+
+    print(f"\n{'measure':12s} {'IoU':>7s} {'model only':>11s} {'ref only':>9s}")
+    for key in ("front", "right", "frontEyes"):
+        row = report[key]
+        print(f"{key:12s} {row['iou']:7.4f} {row['modelOnlyPx']:11d} {row['referenceOnlyPx']:9d}")
+    print(f"{'frontNeck':12s} visible neck px: {report['frontNeck']['visiblePx']}")
+    for failure in failures:
+        print(f"FAIL {failure}")
     print(f"\ndiff images and report.json in {out_dir}")
     if failures:
         raise SystemExit(1)
