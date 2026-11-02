@@ -42,20 +42,22 @@ SEED = 7
 ZONES = ("skin", "antenna", "palp", "mandible")  # build_head.ATLAS_MATERIALS, index = zone id
 CAPSULE_INDEX = 1  # object pass index that marks the head capsule (sutures, eye rims)
 
-# Relief per zone: (granule, vein, undulation) bump heights in cm. The cuticle has fine granules and
-# raised veins (reference detail sheet); mandibles are smoother and harder, antennae finely grained.
+# Relief per zone: (granule, pebble, vein, undulation) bump heights in cm. The cuticle has fine granules,
+# coarser pebbling visible at the default distance and raised veins (reference detail sheet); mandibles
+# are smoother and harder, antennae finely grained.
 RELIEF = {
-    "skin": (0.0016, 0.0022, 0.004),
-    "antenna": (0.0008, 0.0, 0.0015),
-    "palp": (0.0010, 0.0008, 0.002),
-    "mandible": (0.0004, 0.0, 0.0015),
+    "skin": (0.0016, 0.016, 0.0022, 0.004),
+    "antenna": (0.0008, 0.0, 0.0, 0.0015),
+    "palp": (0.0010, 0.002, 0.0008, 0.002),
+    "mandible": (0.0004, 0.0, 0.0, 0.0015),
 }
 GRANULE_SCALE = 55.0  # Voronoi cells per cm: ~0.018 cm granules
+PEBBLE_SCALE = 17.0  # ~0.06 cm, about 5 px at the default distance
 VEIN_SCALE = 3.2
 MOTTLE_SCALE = 5.0
 
-SUTURE_LINE = {"width": 0.010, "strength": 0.45}  # reddish-brown line along the carved grooves
-EYE_RIM = {"inner": 0.015, "outer": 0.075, "strength": 0.8}  # band of capsule around each eye
+SUTURE_LINE = {"width": 0.012, "strength": 0.7}  # reddish-brown line along the carved grooves
+EYE_RIM = {"inner": 0.03, "outer": 0.13, "strength": 1.0}  # band of capsule around each eye
 
 
 def srgb_to_linear(hex_color):
@@ -75,6 +77,9 @@ ANTENNA = srgb_to_linear("#A8764A")
 MANDIBLE = srgb_to_linear("#5C3F2E")
 CREAM = srgb_to_linear("#E6D2C0")
 SUTURE_BROWN = srgb_to_linear("#7E4A2E")
+EYE_RIM_BROWN = srgb_to_linear("#6A3822")
+YELLOW = srgb_to_linear("#BFC04E")
+DEEP_OLIVE = srgb_to_linear("#5C6A26")
 MANDIBLE_TIP = srgb_to_linear("#2A1812")
 PALP_TAN = srgb_to_linear("#B7A35E")
 
@@ -161,8 +166,11 @@ def build_bake_material(mat, zone):
     veins = math_node("POWER", ridge, 14.0)  # thin bright crests of ridged noise read as veins
     mottle = node("ShaderNodeTexNoise", Vector=obj_co, Scale=MOTTLE_SCALE, Detail=4.0, Roughness=0.6).outputs["Fac"]
 
-    g, v, u = RELIEF[zone]
-    height = math_node("ADD", math_node("ADD", math_node("MULTIPLY", granule, g), math_node("MULTIPLY", veins, v)), math_node("MULTIPLY", mottle, u))
+    pebble_cells = node("ShaderNodeTexVoronoi", Vector=obj_co, Scale=PEBBLE_SCALE, Randomness=0.9)
+    pebble = math_node("POWER", math_node("SUBTRACT", 1.0, pebble_cells.outputs["Distance"]), 1.5)
+
+    g, p, v, u = RELIEF[zone]
+    height = math_node("ADD", math_node("ADD", math_node("MULTIPLY", granule, g), math_node("MULTIPLY", pebble, p)), math_node("ADD", math_node("MULTIPLY", veins, v), math_node("MULTIPLY", mottle, u)))
     bump = node("ShaderNodeBump", Height=height, Strength=1.0, Distance=1.0)
     links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
 
@@ -235,13 +243,25 @@ def eye_distances(position, mask):
     points = position[mask]
     for eye in eyes:
         bvh = BVHTree.FromObject(eye, bpy.context.evaluated_depsgraph_get())
-        lo, hi = head.to_web(np.array(eye.bound_box)).min(0) - 0.12, head.to_web(np.array(eye.bound_box)).max(0) + 0.12
+        lo, hi = head.to_web(np.array(eye.bound_box)).min(0) - 0.2, head.to_web(np.array(eye.bound_box)).max(0) + 0.2
         near = np.all((points >= lo) & (points <= hi), axis=1)
         blender_points = head.to_blender(points[near])
         found = np.array([bvh.find_nearest(Vector(p))[3] for p in blender_points], dtype=np.float32)
         idx = np.flatnonzero(near)
         distances[idx] = np.minimum(distances[idx], found)
     return distances
+
+
+def saturated(color, amount=1.3):
+    """AgX tone mapping desaturates mid tones; pre-saturate so the render lands near the palette."""
+    luma = color @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
+    return np.clip(luma[:, None] + (color - luma[:, None]) * amount, 0, 1)
+
+
+def color_patches(position):
+    """Broad 0..1 variation across the head, larger than the mottle: yellow and olive patches."""
+    x, y, z = position.T
+    return np.clip(0.5 + 0.28 * (np.sin(x * 2.3 + y * 1.4) + np.sin(y * 3.1 - z * 2.2 + 1.0)), 0, 1)
 
 
 def compose(passes):
@@ -261,10 +281,11 @@ def compose(passes):
     skin = zone == ZONES.index("skin")
     base = mix(GREEN, OLIVE, np.clip(0.25 + 0.75 * cavity, 0, 1)[skin])
     base = base * (0.86 + 0.28 * mottle[skin])[:, None] * (0.95 + 0.1 * granule[skin])[:, None]
+    patches = color_patches(position[skin])
+    base = mix(base, YELLOW, 0.8 * smoothstep(0.5, 0.8, patches))
+    base = mix(base, DEEP_OLIVE, 0.8 * smoothstep(0.5, 0.2, patches))
     base = mix(base, mix(base, CREAM, 0.18) * 1.08, (veins[skin] * 0.5))
-    # AgX tone mapping desaturates mid greens; pre-saturate so the render lands near #8AA84B
-    luma = base @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
-    albedo[skin] = np.clip(luma[:, None] + (base - luma[:, None]) * 1.3, 0, 1)
+    albedo[skin] = saturated(base * 0.82, 1.6)
     rough[skin] = 0.40 + 0.2 * cavity[skin] - 0.08 * granule[skin] + 0.08 * (mottle[skin] - 0.5)
 
     # capsule only: reddish-brown suture lines and eye rims, as on the reference front view
@@ -274,15 +295,16 @@ def compose(passes):
     line = SUTURE_LINE["strength"] * np.exp(-((nearest / SUTURE_LINE["width"]) ** 2))
     rim = EYE_RIM["strength"] * smoothstep(EYE_RIM["outer"], EYE_RIM["inner"], eye_distances(position, skin & capsule))
     tint = np.clip(np.maximum(line, rim), 0, 1)
-    albedo[cap] = mix(albedo[cap], SUTURE_BROWN, tint)
+    albedo[cap] = mix(mix(albedo[cap], SUTURE_BROWN, line), EYE_RIM_BROWN, rim)
     rough[cap] += 0.05 * tint
 
     antenna = zone == ZONES.index("antenna")
-    albedo[antenna] = ANTENNA * ((0.8 + 0.3 * mottle[antenna]) * (0.65 + 0.35 * ao[antenna]))[:, None]
+    albedo[antenna] = saturated(ANTENNA * ((0.8 + 0.3 * mottle[antenna]) * (0.65 + 0.35 * ao[antenna]))[:, None], 1.5)
     rough[antenna] = 0.5 + 0.1 * cavity[antenna]
 
     palp = zone == ZONES.index("palp")
-    albedo[palp] = mix(PALP_TAN, ANTENNA, np.clip(cavity[palp] * 1.2, 0, 1)) * (0.85 + 0.25 * mottle[palp])[:, None]
+    palp_base = mix(ANTENNA, PALP_TAN, 0.3 * (1 - np.clip(cavity[palp] * 1.2, 0, 1)))
+    albedo[palp] = saturated(palp_base * (0.85 + 0.25 * mottle[palp])[:, None], 1.5)
     rough[palp] = 0.42 + 0.12 * cavity[palp]
 
     mandible = zone == ZONES.index("mandible")

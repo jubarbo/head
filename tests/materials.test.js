@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { PALETTE } from '../src/materials/palette.js';
 import { zoneForMaterial } from '../src/materials/zones.js';
-import { pseudopupilFactor, ommatidiaVisibility, PSEUDOPUPIL } from '../src/materials/eyeOptics.js';
+import { pseudopupilAxis, pseudopupilFactor, ommatidiaVisibility, PSEUDOPUPIL } from '../src/materials/eyeOptics.js';
 
 describe('palette', () => {
   it('matches the reference sheet colors (S1)', () => {
@@ -45,6 +45,30 @@ describe('pseudopupil (view-dependent dark spot of the compound eye)', () => {
   it('fades monotonically between both radii', () => {
     const samples = [0, 0.25, 0.5, 0.75, 1].map((t) => pseudopupilFactor(cos(PSEUDOPUPIL.outerDeg + (PSEUDOPUPIL.innerDeg - PSEUDOPUPIL.outerDeg) * t)));
     for (let i = 1; i < samples.length; i++) expect(samples[i]).toBeGreaterThan(samples[i - 1]);
+  });
+});
+
+describe('pseudopupil axis (reference sheet: sits toward the outer side of the eye)', () => {
+  const lateral = [1, 0, 0];
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+  it('is displaced from the view direction toward the outer side of the eye', () => {
+    const view = [0, 0, 1];
+    const axis = pseudopupilAxis(view, lateral);
+    expect(axis[0]).toBeGreaterThan(0);
+    expect(dot(axis, lateral)).toBeGreaterThan(dot(view, lateral));
+    expect(Math.hypot(...axis)).toBeCloseTo(1, 6);
+  });
+
+  it('points the other way on the opposite eye', () => {
+    expect(pseudopupilAxis([0, 0, 1], [-1, 0, 0])[0]).toBeLessThan(0);
+  });
+
+  it('still follows the view, so the spot is not painted on the eye', () => {
+    const fromFront = pseudopupilAxis([0, 0, 1], lateral);
+    const fromAbove = pseudopupilAxis([0, 1, 0], lateral);
+    expect(dot(fromFront, fromAbove)).toBeLessThan(0.99);
+    expect(fromAbove[1]).toBeGreaterThan(fromFront[1]);
   });
 });
 

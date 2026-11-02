@@ -14,9 +14,9 @@ import { PALETTE } from './palette.js';
  * filtered by the pigmented cuticle.
  */
 const ZONE_LOOK = {
-  skin: { color: PALETTE.green, clearcoat: 0.35, translucency: 0.6, tint: [1.1, 1.25, 0.45] },
-  antenna: { color: PALETTE.antennaBrown, clearcoat: 0.2, translucency: 1.6, tint: [1.4, 0.95, 0.45] },
-  palp: { color: '#B7A35E', clearcoat: 0.25, translucency: 2.0, tint: [1.3, 1.2, 0.5] },
+  skin: { color: PALETTE.green, clearcoat: 0.22, translucency: 0.6, tint: [1.1, 1.25, 0.45] },
+  antenna: { color: PALETTE.antennaBrown, clearcoat: 0.2, translucency: 0.9, tint: [1.4, 0.95, 0.45] },
+  palp: { color: PALETTE.antennaBrown, clearcoat: 0.25, translucency: 1.0, tint: [1.3, 1.0, 0.5] },
   mandible: { color: PALETTE.mandibleBrown, clearcoat: 0.6, translucency: 0.15, tint: [1.3, 0.7, 0.4] },
 };
 
