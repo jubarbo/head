@@ -75,8 +75,8 @@ shadow is a soft contact shadow baked once when the model loads (`src/post/creat
 light's shadow map only self-shadows the head (Medium/High).
 
 The **Life** panel (below Material, collapsed) manages the head's behavior live. *Alive* turns everything
-on or off, and *Reset defaults* restores the settings. The mantis stays still and turns its head in quick
-jumps toward the pointer or finger; with no pointer activity it looks around by itself and sometimes sways
+on or off, and *Reset defaults* restores the settings. The mantis keeps a tiny sway, glides after small pointer or
+finger movements and turns in quick spring-like jumps on large ones; with no pointer activity it looks around by itself and sometimes sways
 sideways (*peering*). *Intensity* and *Speed* affect every effect; **Head** has *Enabled*, *Follow pointer*,
 *Range* and *Saccade pause*; **Peering** has *Enabled*, *Frequency* (sways per minute) and *Amplitude*.
 **Antennae** (they wander on their own, twitch and lag behind the head) has *Enabled*, *Amplitude* and

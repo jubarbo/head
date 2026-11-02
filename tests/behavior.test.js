@@ -53,27 +53,70 @@ describe('head tracking', () => {
     expect(poses.at(-1).yaw).toBeCloseTo(softClamp(target.yaw, LIFE_DEFAULTS.range * DEG), 2);
   });
 
-  it('moves in jumps: fast bursts separated by stillness, not a continuous drift', () => {
+  it('jumps fast on a large change, but follows a slow target far more gently', () => {
+    const peakSpeed = (target) => {
+      const life = quiet();
+      run(life, 1, { target: { yaw: 0, pitch: 0 } });
+      let yaw = life.pose.yaw;
+      let peak = 0;
+      for (let i = 0; i < 180; i++) {
+        const next = life.update(FRAME, { target: { yaw: target(i * FRAME), pitch: 0 } }).yaw;
+        peak = Math.max(peak, Math.abs(next - yaw) / FRAME);
+        yaw = next;
+      }
+      return peak;
+    };
+    expect(peakSpeed(() => 25 * DEG)).toBeGreaterThan(1.5);
+    expect(peakSpeed((t) => 10 * DEG * Math.sin(t * 1.2))).toBeLessThan(0.5);
+  });
+
+  it('accelerates into a jump instead of starting at full speed', () => {
     const life = quiet();
-    run(life, 2, { target });
+    run(life, 1, { target: { yaw: 0, pitch: 0 } });
     const speeds = [];
     let yaw = life.pose.yaw;
-    for (let i = 0; i < 300; i++) {
-      const next = life.update(FRAME, { target: { yaw: 25 * DEG * Math.sin(i * FRAME * 1.5), pitch: 0 } }).yaw;
+    for (let i = 0; i < 20; i++) {
+      const next = life.update(FRAME, { target: { yaw: 20 * DEG, pitch: 0 } }).yaw;
       speeds.push(Math.abs(next - yaw) / FRAME);
       yaw = next;
     }
-    const still = speeds.filter((speed) => speed < 0.02).length / speeds.length;
-    expect(still).toBeGreaterThan(0.3);
-    expect(Math.max(...speeds)).toBeGreaterThan(1);
+    const peak = Math.max(...speeds);
+    expect(speeds[0]).toBeLessThan(peak * 0.6);
+    expect(speeds.indexOf(peak)).toBeGreaterThan(0);
+  });
+
+  it('overshoots a jump very slightly and settles', () => {
+    const life = quiet();
+    run(life, 1, { target: { yaw: 0, pitch: 0 } });
+    const poses = run(life, 1.5, { target: { yaw: 20 * DEG, pitch: 0 } });
+    const goal = poses.at(-1).yaw;
+    const top = Math.max(...poses.map((pose) => pose.yaw));
+    expect(top).toBeGreaterThan(goal * 1.005);
+    expect(top).toBeLessThan(goal * 1.12);
+  });
+
+  it('never freezes or falls far behind a slow pointer', () => {
+    const life = quiet();
+    let frozen = 0;
+    let lag = 0;
+    let previous = life.pose.yaw;
+    for (let i = 0; i < 600; i++) {
+      const target = softClamp(15 * DEG * Math.sin(i * FRAME * 1.2), LIFE_DEFAULTS.range * DEG);
+      const yaw = life.update(FRAME, { target: { yaw: target, pitch: 0 } }).yaw;
+      if (Math.abs(yaw - previous) < 1e-5) frozen++;
+      if (i > 120) lag = Math.max(lag, Math.abs(yaw - target));
+      previous = yaw;
+    }
+    expect(frozen / 600).toBeLessThan(0.05);
+    expect(lag).toBeLessThan(7 * DEG);
   });
 
   it('stays inside the range for any target', () => {
     const life = quiet({ range: 30 });
     const poses = run(life, 3, { target: { yaw: 3, pitch: -3 } });
     for (const pose of poses) {
-      expect(Math.abs(pose.yaw)).toBeLessThan(30 * DEG);
-      expect(Math.abs(pose.pitch)).toBeLessThan(30 * DEG);
+      expect(Math.abs(pose.yaw)).toBeLessThanOrEqual(30 * DEG);
+      expect(Math.abs(pose.pitch)).toBeLessThanOrEqual(30 * DEG);
     }
   });
 
@@ -117,11 +160,14 @@ describe('head tracking', () => {
     expect(jumps(2)).toBeLessThan(jumps(0.3));
   });
 
-  it('jumps sooner at a higher Speed', () => {
-    const slow = quiet({ speed: 0.5 });
-    const fast = quiet({ speed: 2 });
-    const seconds = 0.15 + LIFE_DEFAULTS.saccadePause * 0.5;
-    expect(Math.abs(run(fast, seconds, { target }).at(-1).yaw)).toBeGreaterThanOrEqual(Math.abs(run(slow, seconds, { target }).at(-1).yaw));
+  it('reaches the target sooner at a higher Speed', () => {
+    const framesToArrive = (speed) => {
+      const life = quiet({ speed });
+      let frames = 0;
+      while (life.update(FRAME, { target }).yaw < target.yaw * 0.8 && frames < 600) frames++;
+      return frames;
+    };
+    expect(framesToArrive(2)).toBeLessThan(framesToArrive(0.5));
   });
 });
 
@@ -134,6 +180,12 @@ describe('idle behavior', () => {
     const later = yaws.slice(1800, 2400);
     const difference = first.reduce((sum, yaw, i) => sum + Math.abs(yaw - later[i]), 0) / first.length;
     expect(difference).toBeGreaterThan(0.005);
+  });
+
+  it('is never exactly frozen: a resting mantis keeps a tiny sway', () => {
+    const poses = run(quiet(), 30).slice(60);
+    const frozen = poses.filter((pose, i) => i && Math.abs(pose.yaw - poses[i - 1].yaw) < 1e-6).length;
+    expect(frozen / poses.length).toBeLessThan(0.05);
   });
 
   it('spends most of its time motionless', () => {
