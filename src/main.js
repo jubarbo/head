@@ -12,6 +12,8 @@ import { createContactShadow } from './post/createContactShadow.js';
 import { bindPanel } from './ui/panel.js';
 import { bindMaterialPanel } from './ui/materialPanel.js';
 import { bindLoader } from './ui/loader.js';
+import { bindLifePanel } from './ui/lifePanel.js';
+import { createLife } from './behavior/lifeBinding.js';
 
 const container = /** @type {HTMLElement} */ (document.getElementById('viewport'));
 const loader = bindLoader();
@@ -31,6 +33,8 @@ function start() {
 
   /** @type {import('three').Group | null} */
   let head = null;
+  /** @type {ReturnType<typeof createLife> | null} */
+  let life = null;
   const quality = createQualityManager({ ...stage, post }, (tier) => {
     container.dataset.tier = tier;
     head?.userData.setTextureTier?.(tier);
@@ -46,6 +50,12 @@ function start() {
       stage.scene.add(head);
       contactShadow.bake(head);
       if (head.userData.metal) bindMaterialPanel(head.userData.metal);
+      if (head.userData.rig) {
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        life = createLife({ joints: head.userData.rig.joints, camera: stage.camera, reducedMotion });
+        bindLifePanel(life.behavior);
+        /** @type {any} */ (window).__mantis.life = life;
+      }
       head.userData.setTextureTier?.(quality.tier); // auto mode may have moved while loading
       /** @type {any} */ (window).__mantis.head = head;
     });
@@ -87,6 +97,7 @@ function start() {
     timer.update(timestamp);
     const delta = timer.getDelta();
     rig.update(delta);
+    life?.update(delta, overlay.isVisible()); // the reference sheet is compared against the rest pose
     if (sampling) quality.sample(delta);
     panel.tick(delta, quality.tier);
     post.render(delta);

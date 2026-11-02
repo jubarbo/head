@@ -74,6 +74,14 @@ AgX tone mapping (`OutputPass`) → SMAA (Medium/High). Low renders without scre
 shadow is a soft contact shadow baked once when the model loads (`src/post/createContactShadow.js`); the key
 light's shadow map only self-shadows the head (Medium/High).
 
+The **Life** panel (below Material, collapsed) manages the head's behavior live. *Alive* turns everything
+on or off, and *Reset defaults* restores the settings. The mantis stays still and turns its head in quick
+jumps toward the pointer or finger; with no pointer activity it looks around by itself and sometimes sways
+sideways (*peering*). *Intensity* and *Speed* affect every effect; **Head** has *Enabled*, *Follow pointer*,
+*Range* and *Saccade pause*; **Peering** has *Enabled*, *Frequency* (sways per minute) and *Amplitude*.
+The head returns to rest while the reference sheet is showing, and *Alive* starts off when the system asks
+for reduced motion.
+
 ## 3D assets (Blender 4.5 LTS, headless)
 
 ```bash

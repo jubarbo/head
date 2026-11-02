@@ -18,6 +18,7 @@ export default defineConfig({
   snapshotPathTemplate: '{testDir}/__snapshots__/{projectName}/{arg}{ext}',
   use: {
     baseURL: `http://localhost:${port}${base}`,
+    contextOptions: { reducedMotion: 'reduce' }, // the head stays at rest, so snapshots are deterministic
     launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] },
   },
   projects: [

@@ -51,6 +51,10 @@ export function createReferenceOverlay(scene) {
       const plane = planeFor(view);
       if (plane) plane.visible = true;
     },
+    /** @returns {boolean} whether a reference plane is showing */
+    isVisible() {
+      return [...planes.values()].some((plane) => plane.visible);
+    },
     hide() {
       for (const plane of planes.values()) plane.visible = false;
     },
