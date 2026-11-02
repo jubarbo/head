@@ -52,7 +52,17 @@ FRONS = {"half_width": 0.66, "top": 1.04, "bottom": 0.13}
 EPICRANIAL_START = 1.42  # above the median ocellus (y = 1.3), as in the insect
 CLYPEUS = {"half_width": 0.53, "bottom": -0.42}
 SUBGENAL = ((0.68, 0.13), (0.48, -0.89))
-GROOVE = {"depth": 0.035, "width": 0.03}
+GROOVE = {"depth": 0.07, "width": 0.035}
+# Frons and clypeus read as flat shields: each is pressed onto a plane set just under the crest of the
+# fitted volumes (z at its bottom and top edges, measured on the capsule), which raises its borders into
+# a ledge at the sutures. Offsets are along z only, so the front outline holds.
+PLATES = [
+    {"half_width": FRONS["half_width"], "bottom": FRONS["bottom"], "top": FRONS["top"], "z_bottom": 1.11, "z_top": 1.03, "crown": 0.04},
+    {"half_width": CLYPEUS["half_width"], "bottom": CLYPEUS["bottom"], "top": FRONS["bottom"], "z_bottom": 1.24, "z_top": 1.10, "crown": 0.12},
+]
+PLATE_EDGE = 0.08
+PLATE_FLATTEN = 0.85
+STRIATION = {"period": 0.06, "depth": 0.005, "margin": 0.08, "wave": 0.012}  # fine transverse ridges on the frons
 
 EYE = {
     "center": (1.28, 0.6, 0.45),  # forward enough that the frons does not cover the inner rim (front view)
@@ -67,11 +77,11 @@ LABIUM = {"center": (0.0, -1.3, 0.75), "radii": (0.32, 0.12, 0.28)}
 MAXILLA = {"center": (0.42, -1.15, 0.9), "radii": (0.13, 0.3, 0.12)}
 
 # Polylines for the head's left side (+X), mirrored for the right. One polyline edge per segment.
-MAXILLARY_PALP = [(0.5, -0.5, 0.82), (0.75, -0.85, 0.95), (0.6, -1.05, 1.02), (0.48, -1.3, 1.08), (0.38, -1.48, 1.12), (0.24, -1.58, 1.14)]
-MAXILLARY_PALP_RADII = [0.075, 0.07, 0.065, 0.06, 0.05]
-LABIAL_PALP = [(0.16, -1.35, 0.82), (0.2, -1.5, 0.9), (0.15, -1.62, 0.95), (0.1, -1.7, 0.98)]
-LABIAL_PALP_RADII = [0.05, 0.045, 0.04]
-MANDIBLE = [(0.30, -1.15, 0.95), (0.24, -1.45, 1.1), (-0.04, -1.74, 1.17)]
+MAXILLARY_PALP = [(0.5, -0.5, 0.82), (0.72, -0.85, 0.98), (0.5, -1.1, 1.1), (0.38, -1.35, 1.2), (0.27, -1.55, 1.28), (0.1, -1.72, 1.33)]  # long in depth: the front view caps its drop
+MAXILLARY_PALP_RADII = [0.085, 0.08, 0.075, 0.065, 0.05]
+LABIAL_PALP = [(0.16, -1.35, 0.82), (0.2, -1.5, 1.0), (0.14, -1.63, 1.15), (0.08, -1.72, 1.25)]
+LABIAL_PALP_RADII = [0.055, 0.05, 0.04]
+MANDIBLE = [(0.34, -1.05, 0.98), (0.3, -1.45, 1.12), (-0.04, -1.74, 1.17)]
 MANDIBLE_TEETH = (0.45, 0.6, 0.75)  # positions along the blade, on its inner edge
 
 ANTENNA_SOCKET_XY = (0.48, 1.15)
@@ -311,6 +321,42 @@ def suture_distances(co, normals):
     }
 
 
+def soft_box(v, lo, hi, edge):
+    """1 inside [lo, hi], fading to 0 over `edge` just inside each bound."""
+    t = np.clip(np.minimum(v - lo, hi - v) / edge, 0.0, 1.0)
+    return t * t * (3.0 - 2.0 * t)
+
+
+def plate_offsets(co, normals):
+    """Z offset per vertex that flattens the frons and clypeus and striates the frons."""
+    x, y, z = co[:, 0], co[:, 1], co[:, 2]
+    front = np.clip((normals[:, 2] - 0.1) / 0.3, 0.0, 1.0)
+    offsets = np.zeros(len(co))
+    for plate in PLATES:
+        half, bottom, top = plate["half_width"], plate["bottom"], plate["top"]
+        along = (y - bottom) / (top - bottom)
+        plane = plate["z_bottom"] + along * (plate["z_top"] - plate["z_bottom"]) - plate["crown"] * (x / half) ** 2
+        mask = soft_box(x, -half, half, PLATE_EDGE) * soft_box(y, bottom, top, PLATE_EDGE) * front
+        offsets += mask * PLATE_FLATTEN * (plane - z)
+    margin, half = STRIATION["margin"], FRONS["half_width"]
+    inner = soft_box(x, -half + margin, half - margin, PLATE_EDGE) * soft_box(y, FRONS["bottom"] + margin, FRONS["top"] - margin, PLATE_EDGE)
+    wavy_y = y + STRIATION["wave"] * (np.sin(x * 11.0) + np.sin(x * 23.0 + 1.0))
+    return offsets - inner * front * STRIATION["depth"] * (0.5 + 0.5 * np.cos(2.0 * np.pi * wavy_y / STRIATION["period"]))
+
+
+def shape_plates(obj):
+    mesh = obj.data
+    count = len(mesh.vertices)
+    co = np.empty(count * 3)
+    normals = np.empty(count * 3)
+    mesh.vertices.foreach_get("co", co)
+    mesh.vertices.foreach_get("normal", normals)
+    co_web, n_web = to_web(co), to_web(normals)
+    co_web[:, 2] += plate_offsets(co_web, n_web)
+    mesh.vertices.foreach_set("co", to_blender(co_web).ravel())
+    mesh.update()
+
+
 def carve_sutures(obj):
     mesh = obj.data
     count = len(mesh.vertices)
@@ -341,6 +387,7 @@ def build_capsule():
     capsule.name = capsule.data.name = "head_capsule"
     apply_modifier(capsule, "REMESH", mode="VOXEL", voxel_size=VOXEL_SIZE, adaptivity=0.0)
     apply_modifier(capsule, "SMOOTH", factor=0.6, iterations=40)  # soft fillets between volumes
+    shape_plates(capsule)
     capsule["sutures"] = carve_sutures(capsule)
     ratio = min(1.0, CAPSULE_TRIANGLES / max(1, triangle_count(capsule)))
     apply_modifier(capsule, "DECIMATE", decimate_type="COLLAPSE", ratio=ratio)
@@ -436,14 +483,14 @@ def build_mouthparts():
 
         # curved, flattened blade with teeth along its inner (medial) edge
         path = flip(MANDIBLE)
-        blade_radius = lambda index, t: (0.13 - 0.11 * ((index + t) / (len(path) - 1)))
+        blade_radius = lambda index, t: (0.19 - 0.17 * ((index + t) / (len(path) - 1)))
         verts, faces, dense, tangents = tube_mesh(path, blade_radius, sides=12, step=0.03, flatten=0.55, twist_ref=[0.0, 0.0, 1.0])
         pieces = [(verts, faces)]
         for fraction in MANDIBLE_TEETH:
             k = int(fraction * (len(dense) - 1))
             r = blade_radius(0, fraction * (len(path) - 1))
             medial = unit(np.array([-side, 0.0, 0.0]) - tangents[k] * np.dot([-side, 0.0, 0.0], tangents[k]))
-            pieces.append(cone_mesh(dense[k] + medial * r * 0.7, medial + tangents[k] * 0.4, 0.07, 0.03))
+            pieces.append(cone_mesh(dense[k] + medial * r * 0.7, medial + tangents[k] * 0.4, 0.1, 0.04))
         object_from_mesh(f"mandible_{suffix}", *merge(pieces), "mandible", teeth=len(MANDIBLE_TEETH))
 
 
