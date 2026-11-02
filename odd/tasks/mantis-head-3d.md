@@ -15,6 +15,7 @@ Branch: `feat/mantis-head-3d` · Delivery: `ask-on-risk`, local + GitHub Pages �
 - **S6 — Delivery.** Runs locally (`vite dev` / `vite preview`) and is deployed to GitHub Pages (static build, correct `base` path, GitHub Actions workflow).
 - **S8 — Fidelity to the guide.** User request (L27, verbatim): "analiza esta imagen y dime si podemos mejorar el modelo del proyecto para que sea identica". Agreed scope (L28): get as close to the reference sheet as the scripted pipeline allows, measured by silhouette overlap, front view dominant when the sheet's views disagree. "Identical" is out of reach for scripted modeling; a manual sculpt pass stays out of scope.
 - **S7 — Working mode.** "Trabajaremos una fase por vez: al terminar cada fase, muéstrame el resultado, resume lo hecho y espera mi confirmación antes de pasar a la siguiente."
+- **S9 — Living behavior.** User request (L44, L45, verbatim): "quiero darle vida, debería moverse como si estuviera vivo" and "recuerda que necesito paneles para gestionar estos efectos". Effects proposed by the assistant and pending approval (L46): head tracking in saccades, idle peering sway, antennae, mouthparts. Every effect is manageable from a panel.
 
 ## Technical decisions (approved)
 
@@ -52,7 +53,11 @@ mantis/
 | T7 | QA + delivery: visual snapshots, Safari iOS check, README, GitHub Pages workflow | S6 | inline (no writer trigger) | S | done (approved, L25) — iOS/WebKit run and real Pages deploy pending on user | `cad11d7` (L22) |
 | T8a | Silhouette metric: `check_silhouette.py` renders orthographic front/right masks at `calibration.json` scale, IoU vs sheet crops + diff images; top/bottom qualitative | S8 | inline | S | done (approved, L31) | `dd47803` (L30) |
 | T8b | Geometry rework: inverted-triangle capsule, eyes enlarged/raised and fused at the corners, flat face plates with crisp edges/sutures, neck hidden behind the occiput, longer hanging palps, larger mandibles | S1, S8 | inline | L | done (approved, L43) | `f64100b`, `26a0b51`, `7a320e6`, `80e28ec` |
-| T8c | Surface + materials: visible ommatidia at default distance, reddish-brown eye rim, less milky eye, pseudopupil visible from the front, granular micro-relief and yellow/olive color variation in the bake, antennae/palps to #A8764A | S1, S4, S8 | inline | M | planned (saved, not started, L28) | — |
+| T8c | Surface + materials: visible ommatidia at default distance, reddish-brown eye rim, less milky eye, pseudopupil visible from the front, granular micro-relief and yellow/olive color variation in the bake, antennae/palps to #A8764A | S1, S4, S8 | inline (no writer trigger) | M | done, awaiting approval (L50) | see L50 |
+| T9a | Rig: joint pivots and head hierarchy in `build_head.py`, metal front fixed to the rest pose, contact shadow compatible with motion. No visible motion yet | S9 | inline (no writer trigger) | M | planned (saved, not approved, L46) | — |
+| T9b | Behavior engine, head tracking in saccades, idle peering, Life panel with these controls | S9 | inline (no writer trigger) | M | planned (saved, not approved, L46) | — |
+| T9c | Antennae (bones + secondary motion), mouthparts, their Life panel controls | S9 | inline (no writer trigger) | M | planned (saved, not approved, L46) | — |
+| T9d | Tuning, performance on all tiers, snapshots, README | S9, S5 | inline (no writer trigger) | S | planned (saved, not approved, L46) | — |
 
 ### Acceptance criteria per phase
 
@@ -68,6 +73,30 @@ mantis/
 - **T8b** (revised L31, thresholds lowered L33): `model:silhouette -- --min-front 0.945 --min-right 0.895 --min-eyes 0.93 --max-neck 0` passes (front-view eye-contour overlap and visible neck pixels added to the script in L32); face plates read as plates (deeper sutures, flatter plates, frons striation), longer hanging palps and larger mandibles, judged visually against the sheet; `model:check` still 39/39; model tests still pass (21 parts, < 150k tris, < 3 MB); first load still < 6 MB; part names unchanged so the metal transition and zone masks keep working.
 - **T8c**: side-by-side comparison with the sheet's detail crops (eye, antenna, mandibles, exoskeleton texture).
 - **T8a–c**: visual snapshot baselines are regenerated in each phase (intended appearance change).
+- **T9a**: with animation off, the head renders as before (existing snapshots, `model:silhouette` and `model:check` pass without new baselines); each moving part rotates around its joint; the metal front stays attached to a part that rotates.
+- **T9b**: the head follows the pointer or finger in quick jumps with pauses, within its angle limit; it never reaches the limit abruptly; idle behavior does not show a repeating cycle; orbit, zoom and pan work as before; every panel control acts live.
+- **T9c**: antennae bend smoothly and independently, without breaking at the joints; palps and mandibles stay out of the head capsule at every pose; skin → metal stays correct on all moving parts.
+- **T9d**: S5 fps targets hold with all effects on; first load stays < 6 MB; snapshots are deterministic with animation frozen.
+
+### T9 design (proposed, L46)
+
+- **Approach:** procedural animation in code, not baked clips. Stillness broken by sudden movement is the base of the behavior; no constant sine sway. A small state machine (`still`, `tracking`, `exploring`) with randomized timings drives independent effects.
+- **Code:** new `src/behavior/` with pure, Vitest-tested logic (state machine, saccade timing, angle limits) that receives time and a seeded random source, separate from the Three.js binding. It runs from the existing loop in `src/main.js`.
+- **Rig (T9a):** every part is a loose node today, with its origin at the mesh center. Move origins to the joints and parent eyes, ocelli, antennae and mouthparts under `head_capsule`; the neck stays fixed. Head angle limit about ±30° so the neck joint is not exposed.
+- **Antennae (T9c):** one rigid mesh each today, so they get about 6–8 bones each; they are the only skinned parts. Head rotation reaches them with a delay.
+- **Metal front (T9a):** `metalTransition.js:53` computes it in world space, so it would slide over moving parts. It must use the rest pose; check its order relative to skinning in the vertex shader.
+- **Contact shadow (T9a):** `createContactShadow.js` assumes a static head and bakes once. Keep the bake for the rest pose if head motion is small enough to look right; otherwise rebake at a low rate, measuring its cost.
+- **Life panel (assumption, controls to confirm with the result):** new `data-panel="life"` section following `bindMaterialPanel`, enabled once the model loads. Each effect exposes its controls in a `<details>` group, added in the task that adds the effect:
+  - Global: Alive on/off, Intensity, Speed, Reset defaults.
+  - Head: on/off, Follow pointer on/off, Range, Saccade pause.
+  - Peering: on/off, Frequency, Amplitude.
+  - Antennae: on/off, Amplitude, Nervousness.
+  - Mouthparts: palps on/off, mandibles on/off, Frequency.
+- **Panel state:** one `behavior.state` object with setters, same shape as `MetalControls`, so the panel only mirrors state. Placeholder head: the panel stays disabled.
+- **Interactions:** motion stops while the reference overlay is on, because it needs the rest pose. `prefers-reduced-motion` starts with Alive off, and the panel can turn it on.
+- **Tests:** Playwright freezes behavior at the rest pose through a test hook; `window.__mantis` exposes the behavior controls.
+- **Order:** independent from T8c, which changes surfaces and bakes only. T8c re-bakes must keep the T9a origins, since both go through `build_head.py`.
+- **Delivery:** forecast about 600 authored lines across T9, above the 400 heuristic, so `ask-on-risk` asks for the chain strategy before the first T9 commit.
 
 ### Risks
 
@@ -76,6 +105,7 @@ mantis/
 - AO cost on mobile (T4) → disabled on low tier.
 - No access to real devices → user validates mobile fps.
 - GitHub Pages subpath → Vite `base` and relative asset/transcoder URLs.
+- T9: moved origins may disturb bakes or `model:check` → T9a must prove the rest pose is unchanged; stale contact shadow while moving → see T9 design; skinned antennae may slow depth and GTAO passes → measure in T9d; random motion makes snapshots flaky → freeze hook.
 - T8: scripted modeling has a detail ceiling (last mile = manual sculpt); re-baked textures may push toward the 6 MB first-load budget; fusing eyes into the capsule may disturb the zone masks (eye / suture / mouthparts).
 
 ## Log
@@ -203,3 +233,10 @@ mantis/
 - **L41 (2026-11-01, T8b plate softening):** Plates now keep part of the head curvature (`PLATE_FLATTEN` 0.6, crown 0.15), have rounded corners and softer borders; `GROOVE` eased to 0.05 / 0.04; striation fades 0.18 from the frons border. The silhouette score and the front view could not show the block: it was judged on a 3/4 clay render. Rebuild: build exit 0, no OOM; front 0.9492, right 0.9081, eyes 0.9311, neck 0; `model:check` 39/39; `npm test` 93/93; `test:visual` 8/8 after `--update-snapshots=all`, clean rerun 8/8; assets 4.26 MB. No new independent verifier on these changes.
 - **L42 (2026-11-01, user, verbatim):** "Ahora mejoró pero cambio el color, tiene manchas marrones". Seen mid-build: the dev server served the 23:13 GLB with the 22:51 textures from the previous geometry. After the bake finished (23:28) the viewer snapshots show no brown blotches. Awaiting the user's reload and T8b approval.
 - **L43 (2026-11-01, user, verbatim):** "sí, excelente" (reload confirmed, T8b approved). T8c not started.
+- **L44 (2026-11-02, user, verbatim):** "quiero darle vida, debería moverse como si estuviera vivo, que recomiendas?"
+- **L45 (2026-11-02, user, verbatim):** "primero realiza un plan y guardalo, recuerda que necesito paneles para gestionar estos efectos"
+- **L46 (2026-11-02, T9 plan):** Evidence from the GLB: 21 loose nodes, origins at mesh centers, no skins, no animations. Plan saved as S9, T9a–d, acceptance criteria and T9 design; nothing implemented. The repo declares no Asana board, so the plan lives here and in the Engram mirror. Life panel controls are an assumption until the user confirms them. Next step: user approval and the choice of T8c or T9a first.
+- **L47 (2026-11-02, user, verbatim):** "hagamos T8c antes" (T8c started; T9 stays planned).
+- **L48 (2026-11-02, T8c, uncommitted):** Eye done in code: `position` is quantized, so facets measured 0.020 units (~1.7 px) and `fwidth` overstated that; `OMMATIDIUM_SIZE` 0.04 plus geometric-mean footprint makes them visible at the default distance. Pseudopupil axis leans toward the outer side and still follows the view (`pseudopupilAxis`, TDD). Deeper colors, dark outline, less clearcoat, environment and iridescence. `bake_maps.py` recipe changed (pebble relief, yellow/olive patches, wider eye rim, antennae/palps toward #A8764A) and `cuticleMaterial.js` translucency lowered, but **the bake has not completed**: two runs at 4096 were OOM-killed by WSL (one with exit 137) and one at 2048 was stopped by Claude Code for low memory. `public/textures` still holds the 2026-11-01 maps, so the skin changes are unverified. Vitest 96/96. Snapshot baselines not regenerated. Advisory: the right-view snapshot passed with the changed eyes, so the 1% tolerance may be too loose to catch eye changes.
+- **L49 (2026-11-02, user, verbatim):** "continua" (rebake authorized).
+- **L50 (2026-11-02, T8c result):** Bake at `MANTIS_BAKE_SIZE=2048` passed (7 passes, peak 1.5 GB, about 5 GB available, ~2 min), so the recipe was not the OOM cause; 4096 stays unproven on this 7.4 GB WSL. Shipped maps now come from a 2048 bake, not downsampled from 4K. Skin tuned after the first render: pebble 0.016, patches 0.8, suture 0.7, saturation 1.6, skin clearcoat 0.22. A close-up exposed stained-glass facets; softer walls and a lens dome now read as cobbles. Vitest 96/96; desktop snapshots regenerated with `--update-snapshots=all` (7) plus delivery check passing. Known limits for the user's review: pebble relief shows a blocky pattern in close-ups, probably from map compression (not investigated); a grey rim remains on the eye outline; facets are about twice the real size so they survive at the default distance. iPhone WebKit project not run.
