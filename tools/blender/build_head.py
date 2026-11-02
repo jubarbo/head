@@ -52,18 +52,19 @@ FRONS = {"half_width": 0.66, "top": 1.04, "bottom": 0.13}
 EPICRANIAL_START = 1.42  # above the median ocellus (y = 1.3), as in the insect
 CLYPEUS = {"half_width": 0.53, "bottom": -0.42}
 SUBGENAL = ((0.68, 0.13), (0.48, -0.89))
-GROOVE = {"depth": 0.07, "width": 0.035}
+GROOVE = {"depth": 0.05, "width": 0.04}
 # Frons and clypeus read as flat shields: each is pressed onto a plane set just under the crest of the
-# fitted volumes (z at its bottom and top edges, measured on the capsule), which raises its borders into
-# a ledge at the sutures. Offsets are along z only, so the front outline holds.
+# fitted volumes (z at its bottom and top edges, measured on the capsule), crowned to stay nearly flush
+# with its neighbors. Offsets are along z only, so the front outline holds.
 PLATES = [
-    {"half_width": FRONS["half_width"], "bottom": FRONS["bottom"], "top": FRONS["top"], "z_bottom": 1.11, "z_top": 1.03, "crown": 0.04},
-    {"half_width": CLYPEUS["half_width"], "bottom": CLYPEUS["bottom"], "top": FRONS["bottom"], "z_bottom": 1.24, "z_top": 1.10, "crown": 0.12},
+    {"half_width": FRONS["half_width"], "bottom": FRONS["bottom"], "top": FRONS["top"], "z_bottom": 1.11, "z_top": 1.03, "crown": 0.15},
+    {"half_width": CLYPEUS["half_width"], "bottom": CLYPEUS["bottom"], "top": FRONS["bottom"], "z_bottom": 1.24, "z_top": 1.10, "crown": 0.15},
 ]
-PLATE_EDGE = 0.08
-PLATE_FLATTEN = 0.85
+PLATE_EDGE = 0.12
+PLATE_CORNER = 0.14
+PLATE_FLATTEN = 0.6  # keeps part of the head curvature: the suture marks the border, not a step
 PLATE_REACH = {"near": 0.2, "far": 0.32}  # surface deeper than this behind a plane is the side wall, not the plate
-STRIATION = {"period": 0.06, "depth": 0.005, "margin": 0.08, "wave": 0.012}  # fine transverse ridges on the frons
+STRIATION = {"period": 0.06, "depth": 0.005, "margin": 0.18, "wave": 0.012}  # fine transverse ridges on the frons
 
 EYE = {
     "center": (1.28, 0.6, 0.45),  # forward enough that the frons does not cover the inner rim (front view)
@@ -328,6 +329,15 @@ def soft_box(v, lo, hi, edge):
     return t * t * (3.0 - 2.0 * t)
 
 
+def rounded_box(x, y, half, bottom, top):
+    """1 inside a centered box with rounded corners, fading to 0 over PLATE_EDGE just inside its border."""
+    dx = np.abs(x) - (half - PLATE_CORNER)
+    dy = np.abs(y - (bottom + top) / 2.0) - ((top - bottom) / 2.0 - PLATE_CORNER)
+    outside = np.hypot(np.maximum(dx, 0.0), np.maximum(dy, 0.0)) + np.minimum(np.maximum(dx, dy), 0.0) - PLATE_CORNER
+    t = np.clip(-outside / PLATE_EDGE, 0.0, 1.0)
+    return t * t * (3.0 - 2.0 * t)
+
+
 def plate_offsets(co, normals):
     """Z offset per vertex that flattens the frons and clypeus and striates the frons."""
     x, y, z = co[:, 0], co[:, 1], co[:, 2]
@@ -338,7 +348,7 @@ def plate_offsets(co, normals):
         along = (y - bottom) / (top - bottom)
         plane = plate["z_bottom"] + along * (plate["z_top"] - plate["z_bottom"]) - plate["crown"] * (x / half) ** 2
         reach = np.clip((PLATE_REACH["far"] - np.abs(plane - z)) / (PLATE_REACH["far"] - PLATE_REACH["near"]), 0.0, 1.0)
-        mask = soft_box(x, -half, half, PLATE_EDGE) * soft_box(y, bottom, top, PLATE_EDGE) * front * reach * reach * (3.0 - 2.0 * reach)
+        mask = rounded_box(x, y, half, bottom, top) * front * reach * reach * (3.0 - 2.0 * reach)
         offsets += mask * PLATE_FLATTEN * (plane - z)
     margin, half = STRIATION["margin"], FRONS["half_width"]
     inner = soft_box(x, -half + margin, half - margin, PLATE_EDGE) * soft_box(y, FRONS["bottom"] + margin, FRONS["top"] - margin, PLATE_EDGE)
