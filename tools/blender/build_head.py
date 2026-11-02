@@ -62,6 +62,7 @@ PLATES = [
 ]
 PLATE_EDGE = 0.08
 PLATE_FLATTEN = 0.85
+PLATE_REACH = {"near": 0.2, "far": 0.32}  # surface deeper than this behind a plane is the side wall, not the plate
 STRIATION = {"period": 0.06, "depth": 0.005, "margin": 0.08, "wave": 0.012}  # fine transverse ridges on the frons
 
 EYE = {
@@ -336,7 +337,8 @@ def plate_offsets(co, normals):
         half, bottom, top = plate["half_width"], plate["bottom"], plate["top"]
         along = (y - bottom) / (top - bottom)
         plane = plate["z_bottom"] + along * (plate["z_top"] - plate["z_bottom"]) - plate["crown"] * (x / half) ** 2
-        mask = soft_box(x, -half, half, PLATE_EDGE) * soft_box(y, bottom, top, PLATE_EDGE) * front
+        reach = np.clip((PLATE_REACH["far"] - np.abs(plane - z)) / (PLATE_REACH["far"] - PLATE_REACH["near"]), 0.0, 1.0)
+        mask = soft_box(x, -half, half, PLATE_EDGE) * soft_box(y, bottom, top, PLATE_EDGE) * front * reach * reach * (3.0 - 2.0 * reach)
         offsets += mask * PLATE_FLATTEN * (plane - z)
     margin, half = STRIATION["margin"], FRONS["half_width"]
     inner = soft_box(x, -half + margin, half - margin, PLATE_EDGE) * soft_box(y, FRONS["bottom"] + margin, FRONS["top"] - margin, PLATE_EDGE)
