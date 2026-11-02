@@ -79,6 +79,8 @@ on or off, and *Reset defaults* restores the settings. The mantis stays still an
 jumps toward the pointer or finger; with no pointer activity it looks around by itself and sometimes sways
 sideways (*peering*). *Intensity* and *Speed* affect every effect; **Head** has *Enabled*, *Follow pointer*,
 *Range* and *Saccade pause*; **Peering** has *Enabled*, *Frequency* (sways per minute) and *Amplitude*.
+**Antennae** (they wander on their own, twitch and lag behind the head) has *Enabled*, *Amplitude* and
+*Nervousness*; **Mouthparts** has *Palps*, *Mandibles* and *Frequency* (movements per minute).
 The head returns to rest while the reference sheet is showing, and *Alive* starts off when the system asks
 for reduced motion.
 

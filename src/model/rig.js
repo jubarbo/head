@@ -1,5 +1,5 @@
 // @ts-check
-import { BufferAttribute, Group, Mesh, Vector3 } from 'three';
+import { Bone, BufferAttribute, Group, Mesh, Skeleton, SkinnedMesh, Vector3 } from 'three';
 
 /** @param {readonly number[]} point @returns {number[]} */
 const mirrored = ([x, y, z]) => [-x, y, z];
@@ -22,6 +22,10 @@ export const JOINTS = {
   ...Object.fromEntries(Object.entries(LEFT_JOINTS).map(([name, point]) => [name.replace(/_l$/, '_r'), mirrored(point)])),
 };
 
+/** Bones per antenna: enough for a smooth curve over its ~5 cm. */
+export const ANTENNA_BONES = 8;
+const MIN_SKINNED_VERTICES = 30; // anything smaller is not a real antenna (test doubles, placeholders)
+
 /** The neck stays on the body; everything else belongs to the head. */
 const FIXED_PARTS = new Set(['neck']);
 
@@ -41,11 +45,78 @@ function storeRestPosition(mesh) {
 }
 
 /**
+ * Replaces an antenna by a skinned mesh, with its chain of bones built from the mesh itself: the GLB
+ * ships it as one rigid part, and a new export would invalidate the baked maps. Bones sit at the
+ * vertex centroid of even steps of distance from the joint; each vertex blends the two nearest bones.
+ * @param {Mesh} mesh must already hold `aRestPosition`
+ * @param {Group} joint
+ * @returns {Bone[] | null} null when the mesh is too small to be an antenna
+ */
+function skinAntenna(mesh, joint) {
+  const { aRestPosition: rest } = mesh.geometry.attributes;
+  if (rest.count < MIN_SKINNED_VERTICES) return null;
+  const base = joint.getWorldPosition(new Vector3());
+  const vertex = new Vector3();
+  const distances = new Float32Array(rest.count);
+  let reach = 0;
+  for (let i = 0; i < rest.count; i++) {
+    distances[i] = vertex.fromBufferAttribute(rest, i).distanceTo(base);
+    reach = Math.max(reach, distances[i]);
+  }
+  const step = reach / ANTENNA_BONES;
+
+  const centers = Array.from({ length: ANTENNA_BONES }, () => ({ sum: new Vector3(), count: 0 }));
+  const skinIndex = new Uint16Array(rest.count * 4);
+  const skinWeight = new Float32Array(rest.count * 4);
+  for (let i = 0; i < rest.count; i++) {
+    const along = distances[i] / step;
+    const nearest = Math.min(ANTENNA_BONES - 1, Math.round(along));
+    centers[nearest].sum.add(vertex.fromBufferAttribute(rest, i));
+    centers[nearest].count++;
+    const lower = Math.max(0, Math.floor(along - 0.5));
+    const upper = Math.min(ANTENNA_BONES - 1, lower + 1);
+    const blend = Math.min(1, Math.max(0, along - 0.5 - lower));
+    skinIndex.set([lower, upper], i * 4);
+    skinWeight.set([1 - blend, blend], i * 4);
+  }
+
+  /** @type {Bone[]} */
+  const bones = [];
+  const previous = base.clone();
+  for (const [index, center] of centers.entries()) {
+    const position = index === 0 || center.count === 0 ? previous.clone() : center.sum.divideScalar(center.count);
+    const bone = new Bone();
+    bone.name = `${mesh.name}_bone_${index}`;
+    (bones[index - 1] ?? joint).add(bone);
+    bone.position.copy(index === 0 ? new Vector3() : position.clone().sub(previous));
+    previous.copy(position);
+    bones.push(bone);
+  }
+
+  mesh.geometry.setAttribute('skinIndex', new BufferAttribute(skinIndex, 4));
+  mesh.geometry.setAttribute('skinWeight', new BufferAttribute(skinWeight, 4));
+  const skinned = new SkinnedMesh(mesh.geometry, mesh.material);
+  skinned.name = mesh.name;
+  skinned.castShadow = mesh.castShadow;
+  skinned.receiveShadow = mesh.receiveShadow;
+  skinned.frustumCulled = false; // the bounds of the rest pose do not cover a bent antenna
+  skinned.position.copy(mesh.position);
+  skinned.quaternion.copy(mesh.quaternion);
+  skinned.scale.copy(mesh.scale);
+  joint.remove(mesh);
+  joint.add(skinned);
+  joint.updateWorldMatrix(true, true);
+  skinned.bind(new Skeleton(bones), skinned.matrixWorld);
+  return bones;
+}
+
+/**
  * Inserts pivot groups into the loaded head without moving anything at rest. Rotating `joints.head`
- * turns the face around the neck; rotating an appendage's joint turns it around its base.
+ * turns the face around the neck; rotating an appendage's joint turns it around its base, and the
+ * antenna bones bend each antenna along its length.
  * Parts the model lacks are skipped.
  * @param {import('three').Object3D} head
- * @returns {{ joints: Record<string, Group> }}
+ * @returns {{ joints: Record<string, Group>, antennae: Record<string, Bone[]> }}
  */
 export function createHeadRig(head) {
   head.updateWorldMatrix(true, true);
@@ -78,5 +149,12 @@ export function createHeadRig(head) {
     joints[name] = pivot(name, headJoint);
     joints[name].attach(part);
   }
-  return { joints };
+  /** @type {Record<string, Bone[]>} */
+  const antennae = {};
+  for (const name of ['antenna_l', 'antenna_r']) {
+    const mesh = head.getObjectByName(name);
+    const bones = mesh instanceof Mesh ? skinAntenna(mesh, joints[name]) : null;
+    if (bones) antennae[name] = bones;
+  }
+  return { joints, antennae };
 }

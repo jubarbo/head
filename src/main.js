@@ -52,7 +52,7 @@ function start() {
       if (head.userData.metal) bindMaterialPanel(head.userData.metal);
       if (head.userData.rig) {
         const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        life = createLife({ joints: head.userData.rig.joints, camera: stage.camera, reducedMotion });
+        life = createLife({ ...head.userData.rig, camera: stage.camera, reducedMotion });
         bindLifePanel(life.behavior);
         /** @type {any} */ (window).__mantis.life = life;
       }

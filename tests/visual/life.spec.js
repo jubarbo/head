@@ -33,6 +33,19 @@ test.describe('with motion allowed', () => {
     await expect.poll(() => isAtRest(page), { timeout: 30_000 }).toBe(true);
   });
 
+  test('the antennae bend and the mouthparts move', async ({ page }) => {
+    await openViewer(page);
+    await page.locator('[data-panel="life"] summary').click();
+    await page.locator('[data-setting="mouthFrequency"]').fill('40');
+    await expect.poll(() => page.evaluate(() => {
+      const { joints, antennae } = window.__mantis.head.userData.rig;
+      return Math.abs(antennae.antenna_l.at(-1).rotation.z) > 0.001 && Math.abs(antennae.antenna_r.at(-1).rotation.z) > 0.001;
+    }), { timeout: 30_000 }).toBe(true);
+    await expect.poll(() => page.evaluate(() => window.__mantis.life.behavior.pose.mandibles > 0.05 && window.__mantis.head.userData.rig.joints.mandible_l.rotation.z > 0), { timeout: 60_000 }).toBe(true);
+    await page.locator('[data-setting="antennaOn"]').uncheck();
+    await expect.poll(() => page.evaluate(() => Math.abs(window.__mantis.life.behavior.pose.antennae.left.swing)), { timeout: 30_000 }).toBeLessThan(0.01);
+  });
+
   test('Reset defaults restores the panel', async ({ page }) => {
     await openViewer(page);
     await page.locator('[data-panel="life"] summary').click();

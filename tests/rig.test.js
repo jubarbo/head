@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { BufferAttribute, BufferGeometry, Group, Mesh, Vector3 } from 'three';
-import { createHeadRig, JOINTS } from '../src/model/rig.js';
+import { ANTENNA_BONES, createHeadRig, JOINTS } from '../src/model/rig.js';
 
 const PARTS = [
   'head_capsule', 'eye_l', 'eye_r', 'antenna_l', 'antenna_r', 'mandible_l', 'mandible_r',
@@ -81,6 +81,99 @@ describe('head rig', () => {
   it('works on the placeholder or a partial model: missing parts are skipped', () => {
     const head = new Group();
     expect(() => createHeadRig(head)).not.toThrow();
+  });
+});
+
+/** A curved tube rising from the antenna joint, like the real antenna. */
+function antennaHead() {
+  const head = new Group();
+  const [bx, by, bz] = JOINTS.antenna_l;
+  const positions = [];
+  const indices = [];
+  const RINGS = 40;
+  for (let ring = 0; ring < RINGS; ring++) {
+    const t = ring / (RINGS - 1);
+    for (let side = 0; side < 6; side++) {
+      const angle = (side / 6) * Math.PI * 2;
+      positions.push(bx + t * 2 + 0.03 * Math.cos(angle), by + t * 3 + t * t * 0.4, bz - t * 1.5 + 0.03 * Math.sin(angle));
+      if (ring) indices.push((ring - 1) * 6 + side, ring * 6 + side, ring * 6 + ((side + 1) % 6));
+    }
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
+  geometry.setIndex(indices);
+  const mesh = new Mesh(geometry);
+  mesh.name = 'antenna_l';
+  head.add(mesh);
+  head.updateMatrixWorld(true);
+  return head;
+}
+
+/** World position of a vertex after skinning. */
+function skinnedVertex(mesh, index) {
+  mesh.parent.updateWorldMatrix(true, true); // the bones are siblings of the mesh
+  mesh.skeleton.update();
+  const point = new Vector3();
+  mesh.getVertexPosition(index, point);
+  return point.applyMatrix4(mesh.matrixWorld);
+}
+
+describe('antenna skeleton', () => {
+  it('turns the antenna into a skinned mesh with a chain of bones', () => {
+    const head = antennaHead();
+    const rig = createHeadRig(head);
+    const mesh = head.getObjectByName('antenna_l');
+    expect(mesh.isSkinnedMesh).toBe(true);
+    expect(rig.antennae.antenna_l.length).toBe(ANTENNA_BONES);
+  });
+
+  it('keeps every vertex in place at rest', () => {
+    const head = antennaHead();
+    const before = head.getObjectByName('antenna_l').geometry.attributes.position.clone();
+    createHeadRig(head);
+    const mesh = head.getObjectByName('antenna_l');
+    for (let i = 0; i < before.count; i += 7) {
+      expect(skinnedVertex(mesh, i).distanceTo(new Vector3().fromBufferAttribute(before, i))).toBeLessThan(1e-4);
+    }
+  });
+
+  it('gives every vertex weights that add up to 1', () => {
+    const head = antennaHead();
+    createHeadRig(head);
+    const { skinWeight } = head.getObjectByName('antenna_l').geometry.attributes;
+    for (let i = 0; i < skinWeight.count; i++) {
+      expect(skinWeight.getX(i) + skinWeight.getY(i) + skinWeight.getZ(i) + skinWeight.getW(i)).toBeCloseTo(1, 5);
+    }
+  });
+
+  it('bends: the tip moves far more than the base, and the bend stays smooth along the antenna', () => {
+    const head = antennaHead();
+    const rig = createHeadRig(head);
+    const mesh = head.getObjectByName('antenna_l');
+    const count = mesh.geometry.attributes.position.count;
+    const rest = [];
+    for (let i = 0; i < count; i += 6) rest.push(skinnedVertex(mesh, i));
+    rig.antennae.antenna_l.forEach((bone) => (bone.rotation.z = 0.05));
+    const moved = rest.map((point, ring) => skinnedVertex(mesh, ring * 6).distanceTo(point));
+    expect(moved[0]).toBeLessThan(0.02);
+    expect(moved.at(-1)).toBeGreaterThan(moved[0] + 0.3);
+    for (let ring = 1; ring < moved.length; ring++) expect(Math.abs(moved[ring] - moved[ring - 1])).toBeLessThan(0.08);
+  });
+
+  it('follows the head and the antenna joint', () => {
+    const head = antennaHead();
+    const rig = createHeadRig(head);
+    const mesh = head.getObjectByName('antenna_l');
+    const tip = skinnedVertex(mesh, mesh.geometry.attributes.position.count - 1);
+    rig.joints.head.rotation.y = 0.4;
+    expect(skinnedVertex(mesh, mesh.geometry.attributes.position.count - 1).distanceTo(tip)).toBeGreaterThan(0.2);
+  });
+
+  it('leaves tiny placeholder meshes as plain meshes', () => {
+    const head = fakeHead();
+    const rig = createHeadRig(head);
+    expect(part(head, 'antenna_l').isSkinnedMesh).toBeFalsy();
+    expect(rig.antennae.antenna_l).toBeUndefined();
   });
 });
 

@@ -1,4 +1,5 @@
 // @ts-check
+import { createAppendages } from './appendages.js';
 
 const DEG = Math.PI / 180;
 
@@ -14,6 +15,12 @@ export const LIFE_DEFAULTS = Object.freeze({
   peeringOn: true,
   peeringFrequency: 4,
   peeringAmplitude: 5,
+  antennaOn: true,
+  antennaAmplitude: 12,
+  antennaNervousness: 0.5,
+  palpsOn: true,
+  mandiblesOn: true,
+  mouthFrequency: 6,
 });
 
 const MAX_DELTA = 0.1; // a long frame must not look like a teleport
@@ -61,7 +68,16 @@ const approach = (rate, delta) => 1 - Math.exp(-rate * delta);
  */
 export function createBehavior(random = Math.random, overrides = {}) {
   const state = { ...LIFE_DEFAULTS, ...overrides };
-  const pose = { yaw: 0, pitch: 0, roll: 0 };
+  const antenna = () => ({ swing: 0, nod: 0, ripple: 0, phase: 0 });
+  const pose = {
+    yaw: 0,
+    pitch: 0,
+    roll: 0,
+    antennae: { left: antenna(), right: antenna() },
+    palps: { left: 0, right: 0 },
+    mandibles: 0,
+  };
+  const updateAppendages = createAppendages(random, state, pose);
   const goal = { yaw: 0, pitch: 0 };
   const explore = { yaw: 0, pitch: 0, wait: 1 };
   let pauseLeft = 0;
@@ -127,6 +143,7 @@ export function createBehavior(random = Math.random, overrides = {}) {
     update(delta, { target = null, paused = false } = {}) {
       const dt = Math.min(delta, MAX_DELTA) * state.speed;
       const resting = !state.alive || paused;
+      const previousYaw = pose.yaw;
 
       if (resting) {
         const step = approach(REST_RATE, dt);
@@ -135,6 +152,7 @@ export function createBehavior(random = Math.random, overrides = {}) {
         pose.roll -= pose.roll * step;
         goal.yaw = 0;
         goal.pitch = 0;
+        updateAppendages(dt, true, 0);
         return pose;
       }
 
@@ -160,6 +178,7 @@ export function createBehavior(random = Math.random, overrides = {}) {
       pose.yaw += (goal.yaw - pose.yaw) * step;
       pose.pitch += (goal.pitch - pose.pitch) * step;
       pose.roll = updatePeering(dt, tracking) * state.intensity;
+      updateAppendages(dt, false, dt > 0 ? (pose.yaw - previousYaw) / dt : 0);
       return pose;
     },
   };
