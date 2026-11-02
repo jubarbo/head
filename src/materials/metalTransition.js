@@ -45,12 +45,13 @@ export function createMetalUniforms() {
 /** @typedef {ReturnType<typeof createMetalUniforms>} MetalUniforms */
 
 const VERTEX_DECLARATIONS = /* glsl */ `
+attribute vec3 aRestPosition;
 varying vec3 vMetalPosition;
 void main() {`;
 
 const VERTEX_BODY = /* glsl */ `
 #include <project_vertex>
-vMetalPosition = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz; // world space: one front across all parts`;
+vMetalPosition = aRestPosition; // world space at rest: one front across all parts, fixed to moving ones`;
 
 const FRAGMENT_DECLARATIONS = /* glsl */ `
 uniform float uMetalProgress;

@@ -112,6 +112,7 @@ describe('skin → metal shader patch', () => {
       material.onBeforeCompile(shader, /** @type {any} */ (null));
       expect(shader.uniforms.uMetalProgress).toBe(uniforms.uMetalProgress); // shared object, not a copy
       expect(shader.vertexShader).toContain('vMetalPosition =');
+      expect(shader.vertexShader).toContain('vMetalPosition = aRestPosition'); // sticks to moving parts
       expect(shader.fragmentShader).toContain('metalMask =');
       expect(shader.fragmentShader).toContain('metalnessFactor = mix(');
       expect(shader.fragmentShader).toContain('roughnessFactor = mix(');

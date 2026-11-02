@@ -8,6 +8,7 @@ import { createCuticleMaterial, swapCuticleMaps } from '../materials/cuticleMate
 import { createEyeMaterial, createOcellusMaterial } from '../materials/eyeMaterial.js';
 import { applyMetalTransition, createMetalControls, createMetalUniforms, setAdvanceFrame } from '../materials/metalTransition.js';
 import { advanceFrame } from '../materials/metalAdvance.js';
+import { createHeadRig } from './rig.js';
 
 const MODEL_URL = `${import.meta.env.BASE_URL}models/mantis-head.glb`;
 
@@ -64,6 +65,7 @@ export async function loadHead(renderer, tier) {
   // reach saturate the field and turn last.
   const mouth = mandibles.isEmpty() ? new Vector3() : mandibles.getCenter(new Vector3()).setY(mandibles.min.y);
   setAdvanceFrame(metalUniforms, advanceFrame(body, mouth));
+  head.userData.rig = createHeadRig(head);
   head.userData.metal = createMetalControls(metalUniforms, { eye: materials.eye });
   head.userData.setTextureTier = createTextureTierSwitch(
     renderer,
