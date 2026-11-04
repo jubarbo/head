@@ -1,6 +1,6 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
-import { openViewer, jumpTo } from './viewer.js';
+import { openViewer, jumpTo, unstable } from './viewer.js';
 
 const headRotation = (page) => page.evaluate(() => {
   const { x, y, z } = window.__mantis.head.userData.rig.joints.head.rotation;
@@ -24,6 +24,20 @@ test.describe('with motion allowed', () => {
     clearInterval(moveRight);
     await page.locator('[data-setting="alive"]').uncheck();
     await expect.poll(() => isAtRest(page), { timeout: 30_000 }).toBe(true);
+  });
+
+  // T9d: every moving part returns to rest, so the shared front baseline still matches after real motion.
+  test('Alive off restores the exact rest frame after moving', async ({ page }) => {
+    await openViewer(page);
+    await jumpTo(page, 'front');
+    await page.mouse.move(40, 300);
+    await expect.poll(() => isAtRest(page), { timeout: 30_000 }).toBe(false);
+    await page.locator('[data-panel="life"] summary').click();
+    await page.locator('[data-setting="alive"]').uncheck();
+    await page.locator('[data-panel="life"] summary').click();
+    await page.mouse.move(0, 0);
+    await expect.poll(() => isAtRest(page), { timeout: 30_000 }).toBe(true);
+    await expect(page).toHaveScreenshot('skin-front.png', { mask: unstable(page) });
   });
 
   test('the reference overlay holds the rest pose', async ({ page }) => {

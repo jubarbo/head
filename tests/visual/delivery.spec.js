@@ -19,3 +19,16 @@ test('loads the build under a subpath with every asset and no errors', async ({ 
   expect(await page.evaluate(() => Boolean(/** @type {any} */ (window).__mantis.head.userData.metal))).toBe(true);
   expect(problems).toEqual([]);
 });
+
+// S5 / T9d: the first load stays under budget with every living effect shipped.
+test('keeps the first load under 6 MB', async ({ page }) => {
+  /** @type {Promise<number>[]} */
+  const sizes = [];
+  page.on('response', (response) => {
+    if (response.url().startsWith('http') && response.ok()) sizes.push(response.body().then((body) => body.length));
+  });
+  await openViewer(page);
+  const total = (await Promise.all(sizes)).reduce((sum, size) => sum + size, 0);
+  expect(total).toBeGreaterThan(1_000_000); // guards against an empty measurement
+  expect(total).toBeLessThan(6_000_000);
+});

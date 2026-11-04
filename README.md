@@ -20,13 +20,17 @@ npm run test:ios     # same checks in WebKit with an iPhone 13 viewport
 `playwright.config.js` builds the app and serves `dist/` with `vite preview --base /mantis/`, so every check runs
 under a GitHub Pages-like subpath. `tests/visual/delivery.spec.js` asserts that the GLB, HDRI, KTX2 maps and the
 Basis transcoder (`.wasm`) all load from inside that subpath, the real model (not the placeholder) is shown, and
-there are no console errors or failed requests. `tests/visual/snapshots.spec.js` compares the four reference views,
+there are no console errors or failed requests, and that the first load stays under 6 MB.
+`tests/visual/life.spec.js` checks real motion and that turning *Alive* off returns to the exact rest frame.
+Every other run uses reduced motion, so the head rests and snapshots stay deterministic.
+`tests/visual/snapshots.spec.js` compares the four reference views,
 gold at 50 %, full chrome and the Low tier against the PNGs in `tests/visual/__snapshots__/<project>/`
 (quality pinned to a manual tier, fps readout masked).
 
 Headless browsers render WebGL on the CPU (SwiftShader), so a run takes a few minutes and the baselines are
 specific to the machine that wrote them. After an intended visual change, inspect the diff in
-`test-results/` and refresh the baselines with `npx playwright test --project=desktop-chromium --update-snapshots`.
+`test-results/` and refresh the baselines with `npx playwright test tests/visual/snapshots.spec.js --project=desktop-chromium --update-snapshots=all`
+(plain `--update-snapshots` skips images that still pass within the tolerance).
 
 The `iphone-webkit` project uses Playwright's WebKit build (the Safari engine) with the iPhone 13 viewport,
 touch and user agent. On Linux it needs system libraries once: `sudo npx playwright install-deps webkit`.
@@ -59,8 +63,8 @@ Views are framed in the area the panels leave free: the projection centre is shi
 **Quality** defaults to *Auto*: it starts from a device guess (Medium on touch devices, High on desktops) and, once the scene
 has loaded, steps between Low / Medium / High from the measured frame rate (below 28 fps → down, above 55 fps → up).
 A tier that fell below 28 fps is not tried again until Auto is re-selected, so a 60 Hz display cannot bounce between two tiers.
-Tiers cap the pixel ratio (1 / 1.5 / 2), switch shadows, GTAO, bloom and SMAA, and swap the cuticle maps (1024 on Low,
-2048 otherwise). The readout next to the selector shows the fps and the active tier, for testing on a phone.
+Tiers cap the pixel ratio (1 / 1.5 / 2), switch shadows, GTAO, bloom and SMAA, and swap the albedo and ORM maps (1024 on Low,
+2048 otherwise; the normal map is 1024 on every tier). The readout next to the selector shows the fps and the active tier, for testing on a phone.
 A full-screen overlay shows download progress, a message while a lost WebGL context is being restored, and an error
 when WebGL is unavailable.
 
