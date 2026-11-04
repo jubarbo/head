@@ -59,7 +59,7 @@ mantis/
 | T9a | Rig: joint pivots and head hierarchy in `build_head.py`, metal front fixed to the rest pose, contact shadow compatible with motion. No visible motion yet | S9 | inline (no writer trigger) | M | done (approved, L54) | `5638fdb` |
 | T9b | Behavior engine, head tracking in saccades, idle peering, Life panel with these controls | S9 | inline (no writer trigger) | M | done (approved, L56) | `29eace1` |
 | T9c | Antennae (runtime skeleton + secondary motion), mouthparts, their Life panel controls | S9 | inline (no writer trigger) | M | done (approved, L66) | `5329011`, `7ba0031` |
-| T9d | Tuning, performance on all tiers, snapshots, README | S9, S5 | inline (no writer trigger) | S | done except phone fps (L68) | `f284d25` |
+| T9d | Tuning, performance on all tiers, snapshots, README | S9, S5 | inline (no writer trigger) | S | done (closed by user, L69; phone check deferred to deploy) | `f284d25` |
 
 ### Acceptance criteria per phase
 
@@ -261,3 +261,4 @@ mantis/
 - **L66 (2026-11-04, user, verbatim):** "se ve bien" (motion accepted, T9c approved; T9d starts on `feat/mantis-life-t9d`, moved onto T8d).
 - **L67 (2026-11-04, T9d, commit `f284d25`):** Added tests for the first load under 6 MB and for the exact rest frame after motion; the second now compares against `skin-front.png`. README covers both, the refresh command with `--update-snapshots=all`, and the T8d map sizes. No motion tuning was needed after L66. Vitest 165/165; `life.spec.js` plus `delivery.spec.js` 8/8; `snapshots.spec.js` last passed with the T8d baselines, not rerun after this commit (tests and README only). First load 5.74 MB on High. Pending: S5 fps with all effects on at Medium and Low and on a phone; headless SwiftShader cannot measure this (about 1 fps). High is 50-60 fps (L60).
 - **L68 (2026-11-04, user, verbatim):** "60" (fps on the user's desktop, read as both Medium and Low with Alive on). The S5 desktop target of about 60 fps holds on all tiers (High 50-60, L60). Pending: at least 30 fps on a real phone, which also covers UASTC on a mobile GPU.
+- **L69 (2026-11-04, user, verbatim):** "dejemos la prueba para cuando lo despliegue" (T9d closed. The phone check, at least 30 fps and UASTC on a mobile GPU, is deferred to the GitHub Pages deploy and stays unverified until then).
