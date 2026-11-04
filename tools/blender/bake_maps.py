@@ -367,9 +367,11 @@ ENCODING = {
     # map: (format, transfer function, encoder arguments)
     "albedo": ("R8G8B8_SRGB", "srgb", ["--encode", "basis-lz", "--clevel", "4", "--qlevel", "180"]),
     "orm": ("R8G8B8_UNORM", "linear", ["--encode", "basis-lz", "--clevel", "4", "--qlevel", "200"]),
-    # UASTC would be ~4x larger: the granule relief is high-frequency noise that RDO cannot shrink
-    "normal": ("R8G8B8_UNORM", "linear", ["--encode", "basis-lz", "--clevel", "4", "--qlevel", "255"]),
+    # ETC1S blocks read as pixels on the granule relief. UASTC is ~4x larger and RDO cannot shrink this
+    # high-frequency noise without bringing the blocks back, so the normal map ships at NORMAL_SIZE instead.
+    "normal": ("R8G8B8_UNORM", "linear", ["--encode", "uastc", "--uastc-quality", "2", "--uastc-rdo", "--uastc-rdo-l", "1.0", "--zstd", "20"]),
 }
+NORMAL_SIZE = 1024  # src/materials/textureSet.js MAX_SHIPPED_NORMAL_SIZE; 2048 UASTC breaks the 6 MB first load
 
 
 def encode_ktx2(png, ktx2, kind):
@@ -390,6 +392,8 @@ def write_maps(maps, png_dir, ktx_dir):
         normal /= np.maximum(np.linalg.norm(normal, axis=2, keepdims=True), 1e-6)  # box filter shortens normals
         encoded = {"albedo": linear_to_srgb(maps["albedo"]), "orm": maps["orm"], "normal": normal * 0.5 + 0.5}
         for kind, pixels in encoded.items():
+            if kind == "normal" and size > NORMAL_SIZE:
+                continue
             png = os.path.join(png_dir, f"cuticle-{kind}-{size}.png")
             ktx2 = os.path.join(ktx_dir, f"cuticle-{kind}-{size}.ktx2")
             save_png(pixels.astype(np.float32), png)

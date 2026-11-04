@@ -14,12 +14,19 @@ export const TEXTURE_MAPS = /** @type {const} */ (['albedo', 'normal', 'orm']);
 export const MAX_SHIPPED_TEXTURE_SIZE = 2048;
 
 /**
+ * The normal map is UASTC, because ETC1S blocks read as pixels on the skin relief. At about 4x the
+ * bytes, a 2048 normal map would push the first load past 6 MB, so every tier shares this size.
+ */
+export const MAX_SHIPPED_NORMAL_SIZE = 1024;
+
+/**
  * @typedef {typeof TEXTURE_MAPS[number]} TextureMap
  * @typedef {{ size: number, urls: Record<TextureMap, string> }} TextureSet
  */
 
 /**
- * KTX2 files for a quality tier, sized by its `textureSize` (capped to MAX_SHIPPED_TEXTURE_SIZE).
+ * KTX2 files for a quality tier, sized by its `textureSize` (capped to MAX_SHIPPED_TEXTURE_SIZE, and
+ * to MAX_SHIPPED_NORMAL_SIZE for the normal map). `size` is the albedo and ORM size.
  * @param {import('../quality/tiers.js').TierName} tier
  * @param {string} baseUrl Vite base (import.meta.env.BASE_URL)
  * @returns {TextureSet}
@@ -27,7 +34,10 @@ export const MAX_SHIPPED_TEXTURE_SIZE = 2048;
 export function textureSetFor(tier, baseUrl) {
   const size = Math.min(QUALITY_TIERS[tier].textureSize, MAX_SHIPPED_TEXTURE_SIZE);
   const urls = /** @type {Record<TextureMap, string>} */ (
-    Object.fromEntries(TEXTURE_MAPS.map((map) => [map, `${baseUrl}textures/cuticle-${map}-${size}.ktx2`]))
+    Object.fromEntries(TEXTURE_MAPS.map((map) => {
+      const mapSize = map === 'normal' ? Math.min(size, MAX_SHIPPED_NORMAL_SIZE) : size;
+      return [map, `${baseUrl}textures/cuticle-${map}-${mapSize}.ktx2`];
+    }))
   );
   return { size, urls };
 }

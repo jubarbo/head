@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { QUALITY_TIERS, TIER_ORDER } from '../src/quality/tiers.js';
-import { textureSetFor, TEXTURE_MAPS, MAX_SHIPPED_TEXTURE_SIZE } from '../src/materials/textureSet.js';
+import { textureSetFor, TEXTURE_MAPS, MAX_SHIPPED_TEXTURE_SIZE, MAX_SHIPPED_NORMAL_SIZE } from '../src/materials/textureSet.js';
 
 const PUBLIC = new URL('../public/', import.meta.url);
 const KTX2_IDENTIFIER = [0xab, 0x4b, 0x54, 0x58, 0x20, 0x32, 0x30, 0xbb, 0x0d, 0x0a, 0x1a, 0x0a]; // «KTX 20»\r\n\x1A\n
 const TRANSFER_LINEAR = 1;
 const TRANSFER_SRGB = 2;
+const MODEL_ETC1S = 163; // khr_df_model_e
+const MODEL_UASTC = 166;
 
 /** Header fields of a KTX2 file (KTX 2.0 spec, section 3) plus the DFD transfer function. */
 function readKtx2(url) {
@@ -19,11 +21,13 @@ function readKtx2(url) {
     height: view.getUint32(24, true),
     levels: view.getUint32(40, true),
     // dfdTotalSize (4) + descriptor header (8), then colorModel, colorPrimaries, transferFunction
+    model: bytes[dfdOffset + 4 + 8],
     transfer: bytes[dfdOffset + 4 + 8 + 2],
   };
 }
 
 /** Files of a tier, resolved inside public/ (the URLs are relative to the Vite base). */
+const sizeOf = (map, size) => (map === 'normal' ? Math.min(size, MAX_SHIPPED_NORMAL_SIZE) : size);
 const filesOf = (tier) => Object.fromEntries(TEXTURE_MAPS.map((map) => [map, new URL(textureSetFor(tier, '').urls[map], PUBLIC)]));
 
 describe('texture set per quality tier', () => {
@@ -31,7 +35,7 @@ describe('texture set per quality tier', () => {
     for (const tier of TIER_ORDER) {
       const set = textureSetFor(tier, '/mantis/');
       expect(set.size).toBe(Math.min(QUALITY_TIERS[tier].textureSize, MAX_SHIPPED_TEXTURE_SIZE));
-      for (const map of TEXTURE_MAPS) expect(set.urls[map]).toBe(`/mantis/textures/cuticle-${map}-${set.size}.ktx2`);
+      for (const map of TEXTURE_MAPS) expect(set.urls[map]).toBe(`/mantis/textures/cuticle-${map}-${sizeOf(map, set.size)}.ktx2`);
     }
   });
 
@@ -44,6 +48,11 @@ describe('texture set per quality tier', () => {
     expect(textureSetFor('high', '').size).toBe(2048);
     expect(textureSetFor('medium', '').size).toBe(2048);
   });
+
+  // T8d: UASTC costs about 4x ETC1S, so the normal map trades resolution for block-free relief.
+  it.each(TIER_ORDER)('serves the %s tier the 1024 normal map', (tier) => {
+    expect(textureSetFor(tier, '').urls.normal).toBe('textures/cuticle-normal-1024.ktx2');
+  });
 });
 
 describe('baked cuticle textures (T3)', () => {
@@ -53,7 +62,7 @@ describe('baked cuticle textures (T3)', () => {
       expect(existsSync(url), `${map} ${size}`).toBe(true);
       const header = readKtx2(url);
       expect(header.identifier).toEqual(KTX2_IDENTIFIER);
-      expect([header.width, header.height]).toEqual([size, size]);
+      expect([header.width, header.height]).toEqual([sizeOf(map, size), sizeOf(map, size)]);
       expect(header.levels).toBeGreaterThan(1);
     }
   });
@@ -63,6 +72,14 @@ describe('baked cuticle textures (T3)', () => {
     expect(readKtx2(files.albedo).transfer).toBe(TRANSFER_SRGB);
     expect(readKtx2(files.normal).transfer).toBe(TRANSFER_LINEAR);
     expect(readKtx2(files.orm).transfer).toBe(TRANSFER_LINEAR);
+  });
+
+  // T8d: ETC1S blocks read as pixels on the skin relief (S10); they come from the normal map.
+  it.each(TIER_ORDER)('encodes the %s tier normal map as UASTC, and keeps albedo and ORM as ETC1S', (tier) => {
+    const files = filesOf(tier);
+    expect(readKtx2(files.normal).model).toBe(MODEL_UASTC);
+    expect(readKtx2(files.albedo).model).toBe(MODEL_ETC1S);
+    expect(readKtx2(files.orm).model).toBe(MODEL_ETC1S);
   });
 
   it("uses three's own Basis transcoder (Vite emits it next to the chunk, so it follows the Pages subpath) and ships no second copy", () => {
