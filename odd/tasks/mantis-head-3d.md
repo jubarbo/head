@@ -57,7 +57,7 @@ mantis/
 | T8b | Geometry rework: inverted-triangle capsule, eyes enlarged/raised and fused at the corners, flat face plates with crisp edges/sutures, neck hidden behind the occiput, longer hanging palps, larger mandibles | S1, S8 | inline | L | done (approved, L43) | `f64100b`, `26a0b51`, `7a320e6`, `80e28ec` |
 | T8c | Surface + materials: visible ommatidia at default distance, reddish-brown eye rim, less milky eye, pseudopupil visible from the front, granular micro-relief and yellow/olive color variation in the bake, antennae/palps to #A8764A | S1, S4, S8 | inline (no writer trigger) | M | done (approved, L51) | `0a6f7f3` |
 | T8d | Skin sharpness: find why the skin reads as pixelated and fix it within the first-load budget | S10, S5 | inline (no writer trigger) | S | done (accepted at 1024, L65) | `c5dff11` |
-| T8e | Smoother skin: lower the organic relief of the skin zone | S11 | inline (no writer trigger) | S | done, awaiting approval (L73) | `a7a8d5f`, `830ccf4` |
+| T8e | Smoother skin: lower the organic relief of the skin zone | S11 | inline (no writer trigger) | S | done, awaiting approval (L75) | `a7a8d5f`, `830ccf4`, `de1fd31` |
 | T9a | Rig: joint pivots and head hierarchy in `build_head.py`, metal front fixed to the rest pose, contact shadow compatible with motion. No visible motion yet | S9 | inline (no writer trigger) | M | done (approved, L54) | `5638fdb` |
 | T9b | Behavior engine, head tracking in saccades, idle peering, Life panel with these controls | S9 | inline (no writer trigger) | M | done (approved, L56) | `29eace1` |
 | T9c | Antennae (runtime skeleton + secondary motion), mouthparts, their Life panel controls | S9 | inline (no writer trigger) | M | done (approved, L66) | `5329011`, `7ba0031` |
@@ -268,3 +268,5 @@ mantis/
 - **L71 (2026-11-04, T8e, commit `a7a8d5f`):** Skin renders at 70 % of the baked relief through a per-material `uOrganicRelief` uniform (default 1), so no rebake and the metal keeps its 0.6. A first version with a compile-time constant broke `keeps one shader program per material kind`; the uniform keeps one program and that test untouched. Vitest 170/170, desktop Playwright 15/15, baselines regenerated: skin views change 0.7-1.1 % of pixels, chrome 0.05 %, gold at 50 % 0.20 %. The Relief slider still multiplies on top, so 1 now means 70 % of the bake on skin.
 - **L72 (2026-11-04, user, verbatim):** "Un poco más liso".
 - **L73 (2026-11-04, T8e, commit `830ccf4`):** `organicRelief` 0.7 → 0.5. RED 1 failing, GREEN Vitest 170/170; `snapshots.spec.js` 7/7 regenerated, `life.spec.js` plus `delivery.spec.js` 8/8 on the new baselines.
+- **L74 (2026-11-04, user, verbatim):** "bajalo apenas un poco más".
+- **L75 (2026-11-04, T8e, commit `de1fd31`):** `organicRelief` 0.5 → 0.4. RED 1 failing, GREEN Vitest 170/170; `snapshots.spec.js` 7/7 regenerated, `life.spec.js` plus `delivery.spec.js` 8/8 on the new baselines.
