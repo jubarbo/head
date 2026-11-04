@@ -141,6 +141,30 @@ describe('skin → metal shader patch', () => {
   });
 });
 
+describe('organic relief (S11: the skin is smoother, nothing else changes)', () => {
+  const uniforms = createMetalUniforms();
+  const compiled = (material) => {
+    applyMetalTransition(material, uniforms);
+    const shader = physicalShader();
+    material.onBeforeCompile(shader, /** @type {any} */ (null));
+    return shader;
+  };
+
+  it('softens the skin before the metal takes over, keeping the polished relief', () => {
+    const shader = compiled(createCuticleMaterial('skin', null));
+    expect(shader.uniforms.uOrganicRelief.value).toBe(0.7);
+    expect(shader.fragmentShader).toContain('uRelief * mix( uOrganicRelief, 0.6, metalMask )');
+  });
+
+  it.each(['antenna', 'palp', 'mandible'])('keeps the baked relief on the %s', (zone) => {
+    expect(compiled(createCuticleMaterial(zone, null)).uniforms.uOrganicRelief.value).toBe(1);
+  });
+
+  it('keeps the baked relief on the eye', () => {
+    expect(compiled(createEyeMaterial()).uniforms.uOrganicRelief.value).toBe(1);
+  });
+});
+
 describe('material controls (S3: slider, presets, roughness, relief, hue, eye iridescence)', () => {
   const setup = () => {
     const uniforms = createMetalUniforms();

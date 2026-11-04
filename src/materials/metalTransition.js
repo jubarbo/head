@@ -60,6 +60,7 @@ uniform float uMetalRoughness;
 uniform float uMetalPatina;
 uniform vec3 uPatinaColor;
 uniform float uRelief;
+uniform float uOrganicRelief;
 uniform float uEdgeWidth;
 uniform vec3 uEdgeGlow;
 uniform vec3 uAdvanceOrigin;
@@ -142,7 +143,7 @@ const fragmentSurface = (cavity) => /* glsl */ `
 
 /** Relief strength (slider) and smoother micro-relief once polished; runs after every normal patch. */
 const FRAGMENT_NORMAL = /* glsl */ `
-normal = normalize( mix( nonPerturbedNormal, normal, uRelief * mix( 1.0, 0.6, metalMask ) ) );
+normal = normalize( mix( nonPerturbedNormal, normal, uRelief * mix( uOrganicRelief, 0.6, metalMask ) ) );
 #include <clearcoat_normal_fragment_begin>`;
 
 const FRAGMENT_EMISSIVE = /* glsl */ `
@@ -166,7 +167,8 @@ const FRAGMENT_REFLECTIONS = /* glsl */ `
 /**
  * Extends a viewer material with the skin → metal transition on top of its own onBeforeCompile patch.
  * The GLSL that sets `metalCavity` comes from `material.userData.metalCavity` (the eye uses its facet
- * walls) and defaults to the baked AO.
+ * walls) and defaults to the baked AO. `material.userData.organicRelief` softens the baked relief of
+ * the organic surface only, and defaults to 1.
  * @param {import('three').MeshPhysicalMaterial} material
  * @param {MetalUniforms} uniforms shared by all materials
  */
@@ -176,7 +178,7 @@ export function applyMetalTransition(material, uniforms) {
   const baseKey = material.customProgramCacheKey();
   material.onBeforeCompile = (shader, renderer) => {
     previous.call(material, shader, renderer);
-    Object.assign(shader.uniforms, uniforms);
+    Object.assign(shader.uniforms, uniforms, { uOrganicRelief: { value: material.userData.organicRelief ?? 1 } });
     shader.vertexShader = shader.vertexShader
       .replace('void main() {', VERTEX_DECLARATIONS)
       .replace('#include <project_vertex>', VERTEX_BODY);

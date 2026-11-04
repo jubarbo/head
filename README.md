@@ -127,7 +127,8 @@ normal) and numpy composes the albedo from the palette (olive in cavities, reddi
 rims) and an ORM map: AO (R), roughness (G), thickness (B). Maps ship as mipmapped KTX2. Albedo and ORM use Basis
 ETC1S at 2048 (medium/high tiers) and 1024 (low tier). The normal map uses UASTC at 1024 on every tier, because
 ETC1S blocks read as pixels on the skin relief and a 2048 UASTC map would break the 6 MB first-load budget, which
-also holds back 4K. The viewer loads
+also holds back 4K. The skin renders at 70 % of the baked relief (`organicRelief` in `cuticleMaterial.js`), so it
+reads smoother without a rebake; metal, eyes and the other cuticle zones keep theirs. The viewer loads
 them with `KTX2Loader` and three's own Basis transcoder (bundled by Vite next to the loader chunk).
 
 Viewer materials (`src/materials/`): the cuticle is a `MeshPhysicalMaterial` with the baked maps, a thin waxy

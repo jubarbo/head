@@ -11,10 +11,10 @@ import { PALETTE } from './palette.js';
  * Per-zone look on top of the shared baked atlas. `color` is only used when the maps are missing.
  * Translucency: thin, chitin-light parts (antennae, palps) glow more when backlit than the capsule;
  * the dark sclerotized mandibles barely transmit. The tint saturates the transmitted light, which is
- * filtered by the pigmented cuticle.
+ * filtered by the pigmented cuticle. `organicRelief` softens the baked relief (metalTransition.js).
  */
 const ZONE_LOOK = {
-  skin: { color: PALETTE.green, clearcoat: 0.22, translucency: 0.6, tint: [1.1, 1.25, 0.45] },
+  skin: { color: PALETTE.green, clearcoat: 0.22, translucency: 0.6, tint: [1.1, 1.25, 0.45], organicRelief: 0.7 },
   antenna: { color: PALETTE.antennaBrown, clearcoat: 0.2, translucency: 0.9, tint: [1.4, 0.95, 0.45] },
   palp: { color: PALETTE.antennaBrown, clearcoat: 0.25, translucency: 1.0, tint: [1.3, 1.0, 0.5] },
   mandible: { color: PALETTE.mandibleBrown, clearcoat: 0.6, translucency: 0.15, tint: [1.3, 0.7, 0.4] },
@@ -62,6 +62,7 @@ export function createCuticleMaterial(zone, maps) {
     clearcoat: look.clearcoat,
     clearcoatRoughness: 0.3,
   });
+  material.userData.organicRelief = look.organicRelief;
   const uniforms = {
     uTranslucency: { value: look.translucency },
     uTranslucencyTint: { value: new Color(...look.tint) },
