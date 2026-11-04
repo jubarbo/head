@@ -14,7 +14,7 @@ import { PALETTE } from './palette.js';
  * filtered by the pigmented cuticle. `organicRelief` softens the baked relief (metalTransition.js).
  */
 const ZONE_LOOK = {
-  skin: { color: PALETTE.green, clearcoat: 0.22, translucency: 0.6, tint: [1.1, 1.25, 0.45], organicRelief: 0.7 },
+  skin: { color: PALETTE.green, clearcoat: 0.22, translucency: 0.6, tint: [1.1, 1.25, 0.45], organicRelief: 0.5 },
   antenna: { color: PALETTE.antennaBrown, clearcoat: 0.2, translucency: 0.9, tint: [1.4, 0.95, 0.45] },
   palp: { color: PALETTE.antennaBrown, clearcoat: 0.25, translucency: 1.0, tint: [1.3, 1.0, 0.5] },
   mandible: { color: PALETTE.mandibleBrown, clearcoat: 0.6, translucency: 0.15, tint: [1.3, 0.7, 0.4] },
