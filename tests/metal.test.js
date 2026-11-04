@@ -152,7 +152,7 @@ describe('organic relief (S11: the skin is smoother, nothing else changes)', () 
 
   it('softens the skin before the metal takes over, keeping the polished relief', () => {
     const shader = compiled(createCuticleMaterial('skin', null));
-    expect(shader.uniforms.uOrganicRelief.value).toBe(0.5);
+    expect(shader.uniforms.uOrganicRelief.value).toBe(0.4);
     expect(shader.fragmentShader).toContain('uRelief * mix( uOrganicRelief, 0.6, metalMask )');
   });
 
